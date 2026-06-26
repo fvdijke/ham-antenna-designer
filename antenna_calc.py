@@ -12,6 +12,8 @@ Formulas used (documented per design doc decisions, not derived/guessed):
 
 from dataclasses import dataclass, field
 
+from i18n import BALUN_WHERE, BALUN_WHY, CALC_OUTPUT
+
 METERS_PER_FOOT = 0.3048
 
 # HAM band reference list: name -> (low_mhz, high_mhz)
@@ -28,15 +30,21 @@ BANDS_MHZ = {
     "6m": (50.0, 54.0),
 }
 
-# Balun/unun lookup table, keyed by antenna type.
+# Balun/unun lookup table, keyed by antenna type. "type"/"ratio" are kept in
+# standard RF shorthand (not translated); "where"/"why" come from i18n per lang.
 BALUN_TABLE = {
     "vertical_quarter_wave": {
         "type": "1:1 current choke",
         "ratio": "1:1",
-        "where": "at the feedpoint, on the coax just before it connects to the base of the vertical element",
-        "why": "suppresses common-mode current on the coax shield; a quarter-wave vertical with ground-mounted radials is fed directly, so no impedance-transforming unun is needed",
     }
 }
+
+
+def balun_for(antenna_type: str, lang: str = "en") -> dict:
+    entry = dict(BALUN_TABLE[antenna_type])
+    entry["where"] = BALUN_WHERE[lang]
+    entry["why"] = BALUN_WHY[lang]
+    return entry
 
 
 @dataclass
@@ -69,10 +77,11 @@ def quarter_wave_length_ft(freq_mhz: float) -> float:
     return 234.0 / freq_mhz
 
 
-def design_vertical(band: str, radial_count: int = 4) -> VerticalDesign:
+def design_vertical(band: str, radial_count: int = 4, lang: str = "en") -> VerticalDesign:
     """Design a ground-mounted quarter-wave vertical for the given band.
 
     radial_count: number of quarter-wave radials (4 is the standard rule of thumb).
+    lang: "en" or "nl" -- controls only the balun advice text, not the math.
     """
     if radial_count < 1:
         raise ValueError("radial_count must be at least 1")
@@ -91,7 +100,7 @@ def design_vertical(band: str, radial_count: int = 4) -> VerticalDesign:
         radial_length_m=round(radial_ft * METERS_PER_FOOT, 3),
         feedpoint_impedance_ohms=36.0,  # standard textbook value for an ideal quarter-wave
         # vertical over a perfect ground; real-world radials bring it closer to 25-35 ohms.
-        balun=BALUN_TABLE["vertical_quarter_wave"],
+        balun=balun_for("vertical_quarter_wave", lang=lang),
     )
 
 
@@ -108,16 +117,21 @@ def _build_argparser():
         "--units", choices=["metric", "imperial"], default="metric",
         help="Display units for lengths (default: metric)",
     )
+    parser.add_argument(
+        "--lang", choices=["en", "nl"], default="en",
+        help="Language for output text (default: en)",
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = _build_argparser().parse_args()
 
-    d = design_vertical(args.band)
-    print(f"Ground-mounted quarter-wave vertical -- {d.band} band")
-    print(f"  Design frequency:      {d.design_freq_mhz} MHz (band midpoint)")
-    print(f"  Element length:        {_fmt(d.element_length_ft, d.element_length_m, args.units)}")
-    print(f"  Radials:               {d.radial_count} x {_fmt(d.radial_length_ft, d.radial_length_m, args.units)} each")
-    print(f"  Feedpoint impedance:   ~{d.feedpoint_impedance_ohms} ohms")
-    print(f"  Balun/choke:           {d.balun['type']} ({d.balun['ratio']}) -- {d.balun['where']}")
+    d = design_vertical(args.band, lang=args.lang)
+    t = CALC_OUTPUT[args.lang]
+    print(t["heading"].format(band=d.band))
+    print(t["freq"].format(freq=d.design_freq_mhz))
+    print(t["element"].format(length=_fmt(d.element_length_ft, d.element_length_m, args.units)))
+    print(t["radials"].format(count=d.radial_count, length=_fmt(d.radial_length_ft, d.radial_length_m, args.units)))
+    print(t["impedance"].format(ohms=d.feedpoint_impedance_ohms))
+    print(t["balun"].format(type=d.balun["type"], ratio=d.balun["ratio"], where=d.balun["where"]))
