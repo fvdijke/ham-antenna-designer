@@ -1,9 +1,14 @@
-"""Scaled SVG drawing generator for antenna designs.
+"""SVG drawing generator for antenna designs.
 
-Build-template quality: the SVG embeds real-world units (mm) via width/height
-and viewBox, so it prints true-to-scale at 1mm = 1 SVG user unit. Dispatches
-on AntennaDesign.geometry so each antenna type's calculator doesn't need to
-know anything about rendering.
+NOT true-to-scale: each drawing is scaled (uniformly, so relative proportions
+between elements within one drawing stay correct) to fit a fixed target
+canvas size, so a 5m vertical and a 22m loop both render at a similar,
+reasonable on-screen size instead of wildly different physical dimensions.
+There is no print-template feature in this tool -- these are diagrams for
+understanding the layout, not 1:1 build templates.
+
+Dispatches on AntennaDesign.geometry so each antenna type's calculator
+doesn't need to know anything about rendering.
 """
 
 import math
@@ -13,7 +18,14 @@ import svgwrite
 from i18n import DRAWING
 from models import AntennaDesign
 
-MM_PER_M = 1000.0
+TARGET_SIZE = 700.0  # fixed target size (drawing units) for a design's largest natural dimension
+
+
+def _scale_for(natural_extent_m: float) -> float:
+    """Units-per-meter so that natural_extent_m maps to TARGET_SIZE."""
+    if natural_extent_m <= 0:
+        return 1.0
+    return TARGET_SIZE / natural_extent_m
 
 
 def _fmt_length(value_m: float, units: str) -> str:
@@ -21,6 +33,10 @@ def _fmt_length(value_m: float, units: str) -> str:
         return f"{value_m:.2f} m"
     feet = value_m / 0.3048
     return f"{feet:.2f} ft"
+
+
+def _new_drawing(width: float, height: float) -> svgwrite.Drawing:
+    return svgwrite.Drawing(size=(width, height), viewBox=f"0 0 {width} {height}")
 
 
 def _add_arrow_marker(dwg: svgwrite.Drawing):
@@ -33,13 +49,14 @@ def _draw_vertical(design: AntennaDesign, units: str, lang: str, margin_mm: floa
     t = DRAWING[lang]
     radiator = design.elements_with_role("radiator")[0]
     radials = design.elements_with_role("radial")
-    element_mm = radiator.length_m * MM_PER_M
-    radial_mm = (radials[0].length_m if radials else 0) * MM_PER_M
+    scale = _scale_for(radiator.length_m)
+    element_mm = radiator.length_m * scale
+    radial_mm = (radials[0].length_m if radials else 0) * scale
 
     height_mm = element_mm + margin_mm * 2
     width_mm = radial_mm * 2 + margin_mm * 2 if radials else element_mm * 0.6 + margin_mm * 2
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     base_x = width_mm / 2
@@ -77,15 +94,16 @@ def _draw_vertical(design: AntennaDesign, units: str, lang: str, margin_mm: floa
 
 
 def _draw_horizontal_center_fed(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
-    """Dipole: two legs running left/right from a center feedpoint."""
+    """Dipole/EDZ: two legs running left/right from a center feedpoint."""
     t = DRAWING[lang]
     leg_a, leg_b = design.elements_with_role("radiator")[:2]
-    leg_mm = leg_a.length_m * MM_PER_M
+    scale = _scale_for(leg_a.length_m * 2)
+    leg_mm = leg_a.length_m * scale
 
     width_mm = leg_mm * 2 + margin_mm * 2
     height_mm = margin_mm * 2 + 20
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     center_x = width_mm / 2
@@ -118,13 +136,14 @@ def _draw_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, margi
     t = DRAWING[lang]
     radiator = design.elements_with_role("radiator")[0]
     counterpoise = design.elements_with_role("counterpoise")[0]
-    radiator_mm = radiator.length_m * MM_PER_M
-    counterpoise_mm = counterpoise.length_m * MM_PER_M
+    scale = _scale_for(max(radiator.length_m, counterpoise.length_m))
+    radiator_mm = radiator.length_m * scale
+    counterpoise_mm = counterpoise.length_m * scale
 
     width_mm = radiator_mm + margin_mm * 2
     height_mm = counterpoise_mm + margin_mm * 2 + 20
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     feed_x = margin_mm
@@ -140,7 +159,6 @@ def _draw_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, margi
     dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(radiator.length_m, units)),
                       insert=((feed_x + end_x) / 2, dim_y - 5), font_size="8", font_family="sans-serif"))
 
-    # Counterpoise drops straight down from the feedpoint.
     cp_end_y = feed_y + counterpoise_mm
     dwg.add(dwg.line(start=(feed_x, feed_y), end=(feed_x, cp_end_y), stroke="black", stroke_width=1, stroke_dasharray="2,2"))
     dwg.add(dwg.text(t["counterpoise_label"].format(length=_fmt_length(counterpoise.length_m, units)),
@@ -160,10 +178,11 @@ def _draw_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin_m
     t = DRAWING[lang]
     wire = design.elements_with_role("radiator")[0]
     side_m = wire.length_m / 4
-    side_mm = side_m * MM_PER_M
+    scale = _scale_for(side_m)
+    side_mm = side_m * scale
 
     size_mm = side_mm + margin_mm * 2
-    dwg = svgwrite.Drawing(size=(f"{size_mm}mm", f"{size_mm}mm"), viewBox=f"0 0 {size_mm} {size_mm}")
+    dwg = _new_drawing(size_mm, size_mm)
     _add_arrow_marker(dwg)
 
     x0, y0 = margin_mm, margin_mm
@@ -193,12 +212,13 @@ def _draw_vertical_loop(design: AntennaDesign, units: str, lang: str, margin_mm:
     t = DRAWING[lang]
     wire = design.elements_with_role("radiator")[0]
     side_m = wire.length_m / 3
-    side_mm = side_m * MM_PER_M
+    scale = _scale_for(side_m)
+    side_mm = side_m * scale
 
     width_mm = side_mm + margin_mm * 2
     height_mm = side_mm * 0.87 + margin_mm * 2  # equilateral triangle height ~= side * sin(60)
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     bottom_y = height_mm - margin_mm
@@ -226,20 +246,19 @@ def _draw_vertical_loop(design: AntennaDesign, units: str, lang: str, margin_mm:
 
 def _draw_inverted_v(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
     """Inverted-V dipole: apex at top center, legs sloping down on each side."""
-    import math as _math
-
     t = DRAWING[lang]
     leg_a, leg_b = design.elements_with_role("radiator")[:2]
-    leg_mm = leg_a.length_m * MM_PER_M
+    scale = _scale_for(leg_a.length_m)
+    leg_mm = leg_a.length_m * scale
     droop_deg = 30  # legs droop 30 degrees below horizontal, a common practical angle
 
-    dx = leg_mm * math.cos(_math.radians(droop_deg))
-    dy = leg_mm * math.sin(_math.radians(droop_deg))
+    dx = leg_mm * math.cos(math.radians(droop_deg))
+    dy = leg_mm * math.sin(math.radians(droop_deg))
 
     width_mm = dx * 2 + margin_mm * 2
     height_mm = dy + margin_mm * 2
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     apex_x = width_mm / 2
@@ -267,13 +286,14 @@ def _draw_horizontal_off_center_fed(design: AntennaDesign, units: str, lang: str
     t = DRAWING[lang]
     short_leg = design.elements_with_role("leg_short")[0]
     long_leg = design.elements_with_role("leg_long")[0]
-    short_mm = short_leg.length_m * MM_PER_M
-    long_mm = long_leg.length_m * MM_PER_M
+    scale = _scale_for(short_leg.length_m + long_leg.length_m)
+    short_mm = short_leg.length_m * scale
+    long_mm = long_leg.length_m * scale
 
     width_mm = short_mm + long_mm + margin_mm * 2
     height_mm = margin_mm * 2 + 20
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     feed_x = margin_mm + short_mm
@@ -305,14 +325,15 @@ def _draw_j_pole(design: AntennaDesign, units: str, lang: str, margin_mm: float)
     t = DRAWING[lang]
     radiator = design.elements_with_role("radiator")[0]
     stub = design.elements_with_role("matching_stub")[0]
-    radiator_mm = radiator.length_m * MM_PER_M
-    stub_mm = stub.length_m * MM_PER_M
+    scale = _scale_for(radiator.length_m)
+    radiator_mm = radiator.length_m * scale
+    stub_mm = stub.length_m * scale
     gap_mm = 25.0
 
     width_mm = gap_mm + margin_mm * 2
     height_mm = radiator_mm + margin_mm * 2
 
-    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    dwg = _new_drawing(width_mm, height_mm)
     _add_arrow_marker(dwg)
 
     base_y = height_mm - margin_mm
@@ -323,7 +344,7 @@ def _draw_j_pole(design: AntennaDesign, units: str, lang: str, margin_mm: float)
 
     dwg.add(dwg.line(start=(radiator_x, base_y), end=(radiator_x, radiator_top_y), stroke="black", stroke_width=2))
     dwg.add(dwg.line(start=(stub_x, base_y), end=(stub_x, stub_top_y), stroke="black", stroke_width=2))
-    dwg.add(dwg.line(start=(radiator_x, base_y), end=(stub_x, base_y), stroke="black", stroke_width=2))  # shorted bottom bridge
+    dwg.add(dwg.line(start=(radiator_x, base_y), end=(stub_x, base_y), stroke="black", stroke_width=2))
 
     tap_fraction = design.extra.get("feed_tap_fraction", 0.2)
     tap_y = base_y - stub_mm * tap_fraction
@@ -342,6 +363,159 @@ def _draw_j_pole(design: AntennaDesign, units: str, lang: str, margin_mm: float)
     return dwg
 
 
+def _draw_yagi(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """3-element Yagi: a horizontal boom with reflector, driven, and director
+    drawn as perpendicular elements at their correct spacing along it."""
+    t = DRAWING[lang]
+    reflector = design.elements_with_role("reflector")[0]
+    driven = design.elements_with_role("radiator")[0]
+    director = design.elements_with_role("director")[0]
+
+    boom_m = design.extra["boom_m"]
+    max_element_m = max(reflector.length_m, driven.length_m, director.length_m)
+    scale = _scale_for(max(boom_m, max_element_m))
+
+    reflector_spacing_mm = design.extra["reflector_spacing_m"] * scale
+    director_spacing_mm = design.extra["director_spacing_m"] * scale
+    boom_mm = boom_m * scale
+    max_element_mm = max_element_m * scale
+
+    width_mm = boom_mm + margin_mm * 2
+    height_mm = max_element_mm + margin_mm * 2
+
+    dwg = _new_drawing(width_mm, height_mm)
+    _add_arrow_marker(dwg)
+
+    boom_y = height_mm / 2
+    reflector_x = margin_mm
+    driven_x = margin_mm + reflector_spacing_mm
+    director_x = driven_x + director_spacing_mm
+
+    dwg.add(dwg.line(start=(reflector_x, boom_y), end=(director_x, boom_y), stroke="black", stroke_width=1))
+
+    for x, element, label_key in [
+        (reflector_x, reflector, "reflector_label"),
+        (driven_x, driven, "element_label"),
+        (director_x, director, "director_label"),
+    ]:
+        half = element.length_m * scale / 2
+        dwg.add(dwg.line(start=(x, boom_y - half), end=(x, boom_y + half), stroke="black", stroke_width=2))
+        dwg.add(dwg.text(t[label_key].format(length=_fmt_length(element.length_m, units)),
+                          insert=(x + 3, boom_y - half - 3), font_size="7", font_family="sans-serif"))
+
+    dwg.add(dwg.circle(center=(driven_x, boom_y), r=4, fill="black"))
+    dwg.add(dwg.text(t["boom_label"].format(length=_fmt_length(boom_m, units)),
+                      insert=(reflector_x, boom_y + max_element_mm / 2 + 12), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
+def _draw_quad(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """2-element quad: two squares (driven, reflector) separated by the boom spacing."""
+    t = DRAWING[lang]
+    driven = design.elements_with_role("driven_loop")[0]
+    reflector = design.elements_with_role("reflector_loop")[0]
+    driven_side_m = driven.length_m / 4
+    reflector_side_m = reflector.length_m / 4
+    spacing_m = design.extra["spacing_m"]
+
+    max_side_m = max(driven_side_m, reflector_side_m)
+    scale = _scale_for(spacing_m + max_side_m)
+
+    driven_side_mm = driven_side_m * scale
+    reflector_side_mm = reflector_side_m * scale
+    spacing_mm = spacing_m * scale
+    max_side_mm = max_side_m * scale
+
+    width_mm = spacing_mm + max_side_mm + margin_mm * 2
+    height_mm = max_side_mm + margin_mm * 2
+
+    dwg = _new_drawing(width_mm, height_mm)
+    _add_arrow_marker(dwg)
+
+    base_y = height_mm - margin_mm
+
+    def square(x0, side_mm):
+        y0 = base_y - side_mm
+        return [(x0, y0), (x0 + side_mm, y0), (x0 + side_mm, base_y), (x0, base_y)]
+
+    reflector_x0 = margin_mm
+    driven_x0 = margin_mm + spacing_mm
+
+    dwg.add(dwg.polygon(points=square(reflector_x0, reflector_side_mm), stroke="black", fill="none", stroke_width=2))
+    dwg.add(dwg.polygon(points=square(driven_x0, driven_side_mm), stroke="black", fill="none", stroke_width=2))
+
+    feed_x = driven_x0 + driven_side_mm / 2
+    dwg.add(dwg.circle(center=(feed_x, base_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(t["loop_side_label"].format(length=_fmt_length(driven_side_m, units), count=4),
+                      insert=(driven_x0, base_y - driven_side_mm - 5), font_size="7", font_family="sans-serif"))
+    dwg.add(dwg.text(t["reflector_label"].format(length=_fmt_length(reflector.length_m, units)),
+                      insert=(reflector_x0, base_y - reflector_side_mm - 5), font_size="7", font_family="sans-serif"))
+    dwg.add(dwg.text(t["spacing_label"].format(length=_fmt_length(spacing_m, units)),
+                      insert=(reflector_x0, base_y + 12), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4 + 12), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
+def _draw_moxon(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """Moxon rectangle: driven element bracket facing reflector bracket, with
+    the A/B/C/D dimensions from the Cebik regression equations."""
+    t = DRAWING[lang]
+    a_m, b_m, c_m, d_m = design.extra["a_m"], design.extra["b_m"], design.extra["c_m"], design.extra["d_m"]
+    depth_m = b_m + c_m + d_m
+    scale = _scale_for(max(a_m, depth_m))
+
+    a_mm, b_mm, c_mm, d_mm = a_m * scale, b_m * scale, c_m * scale, d_m * scale
+    depth_mm = b_mm + c_mm + d_mm
+
+    width_mm = a_mm + margin_mm * 2
+    height_mm = depth_mm + margin_mm * 2
+
+    dwg = _new_drawing(width_mm, height_mm)
+    _add_arrow_marker(dwg)
+
+    left_x = margin_mm
+    right_x = margin_mm + a_mm
+    driven_y = margin_mm + depth_mm  # driven element is the "front" (closer to director side)
+    driven_tail_y = driven_y - b_mm
+    reflector_y = margin_mm
+    reflector_tail_y = reflector_y + d_mm
+
+    dwg.add(dwg.line(start=(left_x, driven_y), end=(right_x, driven_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(left_x, driven_y), end=(left_x, driven_tail_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(right_x, driven_y), end=(right_x, driven_tail_y), stroke="black", stroke_width=2))
+
+    dwg.add(dwg.line(start=(left_x, reflector_y), end=(right_x, reflector_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(left_x, reflector_y), end=(left_x, reflector_tail_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(right_x, reflector_y), end=(right_x, reflector_tail_y), stroke="black", stroke_width=2))
+
+    feed_x = (left_x + right_x) / 2
+    dwg.add(dwg.circle(center=(feed_x, driven_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(f"A: {_fmt_length(a_m, units)}",
+                      insert=(left_x, driven_y + 10), font_size="7", font_family="sans-serif"))
+    dwg.add(dwg.text(f"B: {_fmt_length(b_m, units)}  C: {_fmt_length(c_m, units)}  D: {_fmt_length(d_m, units)}",
+                      insert=(left_x, (driven_tail_y + reflector_tail_y) / 2), font_size="7", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
 _RENDERERS = {
     "vertical": _draw_vertical,
     "horizontal_center_fed": _draw_horizontal_center_fed,
@@ -351,6 +525,9 @@ _RENDERERS = {
     "inverted_v": _draw_inverted_v,
     "horizontal_off_center_fed": _draw_horizontal_off_center_fed,
     "j_pole": _draw_j_pole,
+    "yagi": _draw_yagi,
+    "quad": _draw_quad,
+    "moxon": _draw_moxon,
 }
 
 
@@ -366,7 +543,7 @@ def _build_argparser():
     from data_store import BANDS_MHZ
     from registry import REGISTRY
 
-    parser = argparse.ArgumentParser(description="Generate a scaled SVG drawing of an antenna design")
+    parser = argparse.ArgumentParser(description="Generate an SVG diagram of an antenna design (not true-to-scale)")
     parser.add_argument("antenna_type", nargs="?", default="vertical_quarter_wave", help=f"One of: {', '.join(REGISTRY)}")
     parser.add_argument("band", nargs="?", default="20m", help=f"HAM band, one of: {', '.join(BANDS_MHZ)}")
     parser.add_argument("out", nargs="?", default=None, help="Output SVG path")
@@ -385,4 +562,4 @@ if __name__ == "__main__":
     d = design_fn(args.antenna_type, args.band, lang=args.lang)
     dwg = draw_antenna(d, units=args.units, lang=args.lang)
     dwg.saveas(out_path)
-    print(f"Saved scaled drawing to {out_path}")
+    print(f"Saved drawing to {out_path}")

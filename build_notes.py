@@ -17,7 +17,10 @@ from i18n import (
     BUILD_NOTES_INVERTED_V,
     BUILD_NOTES_JPOLE,
     BUILD_NOTES_LOOP,
+    BUILD_NOTES_MOXON,
     BUILD_NOTES_OCFD,
+    BUILD_NOTES_QUAD,
+    BUILD_NOTES_YAGI,
     CHOKE_SPEC,
 )
 from models import AntennaDesign
@@ -211,6 +214,78 @@ def _advice_delta_loop(design: AntennaDesign, units: str, lang: str) -> str:
     ])
 
 
+def _advice_yagi(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_YAGI[lang]
+    driven = design.elements_with_role("radiator")[0]
+    reflector = design.elements_with_role("reflector")[0]
+    director = design.elements_with_role("director")[0]
+    extra = design.extra
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"], "",
+        t["step1"].format(
+            length_driven=_length_str(driven.length_ft, driven.length_m, units),
+            length_reflector=_length_str(reflector.length_ft, reflector.length_m, units),
+            length_director=_length_str(director.length_ft, director.length_m, units),
+        ), "",
+        t["step2"].format(
+            length_boom=_length_str(extra["boom_ft"], extra["boom_m"], units),
+            length_reflector_spacing=_length_str(extra["reflector_spacing_ft"], extra["reflector_spacing_m"], units),
+            length_director_spacing=_length_str(extra["director_spacing_ft"], extra["director_spacing_m"], units),
+        ), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_quad(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_QUAD[lang]
+    driven = design.elements_with_role("driven_loop")[0]
+    reflector = design.elements_with_role("reflector_loop")[0]
+    extra = design.extra
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"], "",
+        t["step1"].format(
+            length_driven=_length_str(driven.length_ft, driven.length_m, units),
+            length_driven_side=_length_str(driven.length_ft / 4, driven.length_m / 4, units),
+            length_reflector=_length_str(reflector.length_ft, reflector.length_m, units),
+            length_reflector_side=_length_str(reflector.length_ft / 4, reflector.length_m / 4, units),
+        ), "",
+        t["step2"].format(length_spacing=_length_str(extra["spacing_ft"], extra["spacing_m"], units)), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_moxon(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_MOXON[lang]
+    driven = design.elements_with_role("radiator")[0]
+    reflector = design.elements_with_role("reflector")[0]
+    extra = design.extra
+    wire_mm = extra["wire_diameter_m"] * 1000
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"].format(wire_diameter=f"{wire_mm:.1f}"), "",
+        t["step1"].format(
+            length_driven=_length_str(driven.length_ft, driven.length_m, units),
+            length_a=_length_str(extra["a_ft"], extra["a_m"], units),
+            length_b=_length_str(extra["b_ft"], extra["b_m"], units),
+            length_reflector=_length_str(reflector.length_ft, reflector.length_m, units),
+            length_d=_length_str(extra["d_ft"], extra["d_m"], units),
+        ), "",
+        t["step2"].format(length_c=_length_str(extra["c_ft"], extra["c_m"], units)), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
 _ADVICE_BY_TYPE = {
     "vertical_quarter_wave": _advice_vertical,
     "dipole_half_wave": _advice_dipole,
@@ -222,6 +297,9 @@ _ADVICE_BY_TYPE = {
     "five_eighths_vertical": _advice_five_eighths,
     "extended_double_zepp": _advice_edz,
     "delta_loop_vertical": _advice_delta_loop,
+    "yagi_3_element": _advice_yagi,
+    "quad_2_element": _advice_quad,
+    "moxon_2_element": _advice_moxon,
 }
 
 

@@ -160,6 +160,10 @@ DRAWING = {
         "radial_label": "Radial x{count}: {length} each",
         "counterpoise_label": "Counterpoise: {length}",
         "loop_side_label": "Side: {length} (x{count})",
+        "spacing_label": "Spacing: {length}",
+        "boom_label": "Boom: {length}",
+        "reflector_label": "Reflector: {length}",
+        "director_label": "Director: {length}",
         "feedpoint_label": "Feedpoint: ~{ohms} ohms, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- design freq {freq} MHz",
     },
@@ -168,6 +172,10 @@ DRAWING = {
         "radial_label": "Radiaal x{count}: {length} elk",
         "counterpoise_label": "Counterpoise: {length}",
         "loop_side_label": "Zijde: {length} (x{count})",
+        "spacing_label": "Afstand: {length}",
+        "boom_label": "Boom: {length}",
+        "reflector_label": "Reflector: {length}",
+        "director_label": "Director: {length}",
         "feedpoint_label": "Voedingspunt: ~{ohms} ohm, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- ontwerpfreq {freq} MHz",
     },
@@ -341,6 +349,69 @@ BUILD_NOTES_DELTA_LOOP = {
         "step3": "3. Voedingspunt: onderbreek de draad op het midden van de onderste zijde en verbind daar\n   de coax (via de balun). Verwacht ~{ohms} ohm voedingspuntimpedantie.",
         "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
         "step5": "5. Net als de horizontale loop is deze stiller dan een dipool, maar de verticale orientatie\n   bevoordeelt DX over lokale/NVIS-verbindingen -- kies de orientatie op basis van wat je wilt werken.",
+    },
+}
+
+BUILD_NOTES_YAGI = {
+    "en": {
+        "title": "Build notes -- {band} 3-element Yagi",
+        "warning": "NOTE: these are published beginner rule-of-thumb dimensions, not an NEC-optimized\n   design. Treat this as a starting point to build and tune, not a final answer.",
+        "step1": "1. Cut the driven element to {length_driven}, reflector to {length_reflector},\n   and director to {length_director}. All three mount perpendicular to the boom.",
+        "step2": "2. Build a boom of at least {length_boom} long. Mount the reflector at one end, the\n   driven element {length_reflector_spacing} from the reflector, and the director\n   {length_director_spacing} beyond the driven element.",
+        "step3": "3. Feedpoint: connect coax through the balun at the driven element's center.\n   Expect ~{ohms} ohms feedpoint impedance, lower than a plain dipole's 73 ohms.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the driven element -- {balun_why}.",
+        "step5": "5. The reflector and director are NOT fed -- they're parasitic elements, mounted\n   insulated from the boom (or with insulating standoffs) and left open at the ends.\n   Use an antenna analyzer to fine-tune spacing/lengths for best SWR and front-to-back ratio.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} 3-elements Yagi",
+        "warning": "LET OP: dit zijn gepubliceerde vuistregel-afmetingen voor beginners, geen\n   NEC-geoptimaliseerd ontwerp. Zie dit als startpunt om te bouwen en af te stemmen, niet als eindantwoord.",
+        "step1": "1. Knip het gevoede element op {length_driven}, de reflector op {length_reflector},\n   en de director op {length_director}. Alle drie monteren loodrecht op de boom.",
+        "step2": "2. Bouw een boom van minstens {length_boom} lang. Monteer de reflector aan een einde, het\n   gevoede element {length_reflector_spacing} van de reflector, en de director\n   {length_director_spacing} voorbij het gevoede element.",
+        "step3": "3. Voedingspunt: verbind de coax via de balun op het midden van het gevoede element.\n   Verwacht ~{ohms} ohm voedingspuntimpedantie, lager dan de 73 ohm van een gewone dipool.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het gevoede element -- {balun_why}.",
+        "step5": "5. Reflector en director worden NIET gevoed -- het zijn parasitaire elementen, geisoleerd\n   van de boom gemonteerd (of met isolerende afstandhouders) en open aan de uiteinden.\n   Gebruik een antenne-analyzer om afstand/lengtes fijn af te stemmen voor beste SWR en voor-achterverhouding.",
+    },
+}
+
+BUILD_NOTES_QUAD = {
+    "en": {
+        "title": "Build notes -- {band} 2-element cubical quad",
+        "warning": "NOTE: these are published beginner rule-of-thumb dimensions, not an NEC-optimized\n   design. Treat this as a starting point to build and tune, not a final answer.",
+        "step1": "1. Cut a driven loop wire to {length_driven} total circumference (side = {length_driven_side})\n   and a reflector loop wire to {length_reflector} total (side = {length_reflector_side}).",
+        "step2": "2. Build a spreader frame (fiberglass/wood) for each loop, square, supported from a\n   center boom {length_spacing} long separating driven and reflector.",
+        "step3": "3. Feedpoint: break the driven loop at its center-bottom and connect coax there\n   (through the balun). Expect ~{ohms} ohms -- the spacing here is chosen to land close\n   to 50 ohms directly.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. The reflector loop is NOT fed -- left as a closed loop, slightly larger than the\n   driven loop. Quads are quieter and often outperform a Yagi of similar boom length on\n   the lower HF bands.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} 2-elements kubieke quad",
+        "warning": "LET OP: dit zijn gepubliceerde vuistregel-afmetingen voor beginners, geen\n   NEC-geoptimaliseerd ontwerp. Zie dit als startpunt om te bouwen en af te stemmen, niet als eindantwoord.",
+        "step1": "1. Knip een gevoede-loopdraad af op {length_driven} totale omtrek (zijde = {length_driven_side})\n   en een reflector-loopdraad op {length_reflector} totaal (zijde = {length_reflector_side}).",
+        "step2": "2. Bouw een spreader-frame (glasvezel/hout) voor elke loop, vierkant, gedragen door een\n   middenboom van {length_spacing} lang die gevoede loop en reflector scheidt.",
+        "step3": "3. Voedingspunt: onderbreek de gevoede loop onderaan in het midden en verbind daar de\n   coax (via de balun). Verwacht ~{ohms} ohm -- de afstand hier is gekozen om dicht bij\n   50 ohm direct uit te komen.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. De reflector-loop wordt NIET gevoed -- blijft een gesloten loop, iets groter dan de\n   gevoede loop. Quads zijn stiller en presteren vaak beter dan een Yagi met vergelijkbare\n   boomlengte op de lagere HF-banden.",
+    },
+}
+
+BUILD_NOTES_MOXON = {
+    "en": {
+        "title": "Build notes -- {band} Moxon rectangle",
+        "warning": "NOTE: based on the published Cebik (W4RNL) regression-equation method, assuming a\n   {wire_diameter} mm wire/tubing diameter. If your actual wire gauge differs significantly,\n   dimensions will shift slightly -- this is the one place this calculator depends on an assumption.",
+        "step1": "1. Cut the driven element wire to {length_driven} total (a {length_a} straight run with a\n   {length_b} tail bent back at each end) and the reflector to {length_reflector} total\n   (same {length_a} straight run, {length_d} tails).",
+        "step2": "2. Mount both elements on a single flat frame (spreader), driven element in front,\n   reflector behind, with a {length_c} gap between the driven tail tips and the reflector tail tips.",
+        "step3": "3. Feedpoint: connect coax through the balun at the gap in the center of the driven element\n   (NOT the reflector). Expect ~{ohms} ohms -- the Moxon shape is specifically designed to land near 50 ohms.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. The compact, lightweight Moxon rectangle is popular for portable/field use -- decent\n   gain and front-to-back ratio in a much smaller footprint than a 2-element Yagi or quad.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} Moxon-rechthoek",
+        "warning": "LET OP: gebaseerd op de gepubliceerde Cebik (W4RNL) regressievergelijking-methode, uitgaande\n   van een draad-/buisdiameter van {wire_diameter} mm. Bij een sterk afwijkende draaddikte\n   verschuiven de afmetingen iets -- dit is de enige plek waar deze calculator van een aanname uitgaat.",
+        "step1": "1. Knip de draad voor het gevoede element op {length_driven} totaal (een rechte loop van\n   {length_a} met aan elk einde een teruggebogen staart van {length_b}) en de reflector op\n   {length_reflector} totaal (zelfde rechte loop van {length_a}, staarten van {length_d}).",
+        "step2": "2. Monteer beide elementen op een enkel vlak frame (spreader), gevoede element voor,\n   reflector achter, met een tussenruimte van {length_c} tussen de staartpunten.",
+        "step3": "3. Voedingspunt: verbind de coax via de balun bij de spleet in het midden van het gevoede\n   element (NIET de reflector). Verwacht ~{ohms} ohm -- de Moxon-vorm is specifiek ontworpen\n   om dicht bij 50 ohm uit te komen.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. De compacte, lichte Moxon-rechthoek is populair voor portable/veldgebruik -- behoorlijke\n   winst en voor-achterverhouding in een veel kleinere footprint dan een 2-elements Yagi of quad.",
     },
 }
 
