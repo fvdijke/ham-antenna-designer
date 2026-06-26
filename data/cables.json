@@ -1,0 +1,62 @@
+{
+  "RG-58": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Thin, flexible, higher loss -- fine for short runs or low power"
+  },
+  "RG-58 foam": {
+    "velocity_factor": 0.535,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam dielectric variant of RG-58"
+  },
+  "RG-213": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Thicker than RG-58, lower loss, common general-purpose ham coax"
+  },
+  "RG-8": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Similar to RG-213, solid polyethylene dielectric"
+  },
+  "RG-8X": {
+    "velocity_factor": 0.79,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam dielectric, lower loss than RG-58 in a similar thin form factor"
+  },
+  "RG-214": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Double-shielded RG-213 equivalent, better shielding for high-RF environments"
+  },
+  "9913": {
+    "velocity_factor": 0.84,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Air-spaced dielectric, low loss, popular for longer coax runs"
+  },
+  "LMR-400": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Low-loss foam dielectric coax, common for longer runs to a mast-mounted antenna"
+  },
+  "Ladder line 450": {
+    "velocity_factor": 0.95,
+    "impedance_ohms": 450,
+    "type": "open_wire",
+    "notes": "Window/ladder line, very low loss, needs a balanced feed (tuner with balun)"
+  },
+  "Ladder line 600": {
+    "velocity_factor": 0.97,
+    "impedance_ohms": 600,
+    "type": "open_wire",
+    "notes": "Wide-spaced open-wire line, lowest loss option, bulky to route"
+  }
+}

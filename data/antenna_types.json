@@ -1,0 +1,20 @@
+{
+  "vertical_quarter_wave": {
+    "label_en": "Ground-mounted quarter-wave vertical",
+    "label_nl": "Grondgemonteerde kwartgolf verticaal",
+    "geometry": "vertical",
+    "feed_location": "base"
+  },
+  "dipole_half_wave": {
+    "label_en": "Half-wave dipole",
+    "label_nl": "Halve-golf dipool",
+    "geometry": "horizontal_center_fed",
+    "feed_location": "center"
+  },
+  "efhw": {
+    "label_en": "End-fed half-wave (EFHW)",
+    "label_nl": "End-fed halve golf (EFHW)",
+    "geometry": "horizontal_end_fed",
+    "feed_location": "end"
+  }
+}

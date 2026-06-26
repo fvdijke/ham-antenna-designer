@@ -1,19 +1,23 @@
 """Tkinter GUI for the HAM Antenna Designer.
 
 Visual style matches HAMIOS: dark background, amber (#FFB000) accents,
-amber-bordered panels. Lets you pick a band, units, and language, see the
-computed design + build advice, and export the scaled SVG drawing or the
-true-to-scale mast print template (PDF).
+amber-bordered panels. Lets you pick an antenna type, band, units, and
+language, see the computed design + build advice, and export the scaled SVG
+drawing or the true-to-scale radiator print template (PDF). A feed-cable
+dropdown shows velocity factor for reference (per the original cable/VF list
+requirement) -- informational only, not yet wired into a feedline calculation.
 """
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from antenna_calc import BANDS_MHZ, design_vertical
+import calculators  # noqa: F401 -- registers all antenna calculator types
 from build_notes import build_advice
-from drawing import draw_vertical
-from i18n import CALC_OUTPUT
-from tile_pdf import tile_mast
+from data_store import BANDS_MHZ, CABLES, antenna_type_label
+from drawing import draw_antenna
+from format_text import format_summary
+from registry import REGISTRY, design as design_antenna
+from tile_pdf import tile_radiator
 
 BG = "#1a1a1a"
 PANEL_BG = "#1f1f1f"
@@ -27,29 +31,35 @@ FONT_MONO = ("Menlo", 10)
 UI_TEXT = {
     "en": {
         "window_title": "HAM Antenna Designer",
+        "antenna_type": "Antenna",
         "band": "Band",
         "units": "Units",
         "language": "Language",
+        "feed_cable": "Feed cable (VF)",
         "calculate": "Calculate",
         "export_svg": "Export SVG drawing...",
-        "export_pdf": "Export mast print template (PDF)...",
+        "export_pdf": "Export radiator print template (PDF)...",
         "results": "Design",
         "advice": "Build notes",
         "saved": "Saved to {path}",
         "error": "Error",
+        "vf_label": "Velocity factor: {vf} ({notes})",
     },
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
+        "antenna_type": "Antenne",
         "band": "Band",
         "units": "Eenheden",
         "language": "Taal",
+        "feed_cable": "Voedingskabel (VF)",
         "calculate": "Berekenen",
         "export_svg": "SVG-tekening exporteren...",
-        "export_pdf": "Mastsjabloon exporteren (PDF)...",
+        "export_pdf": "Stralerelement-sjabloon exporteren (PDF)...",
         "results": "Ontwerp",
         "advice": "Bouwnotities",
         "saved": "Opgeslagen naar {path}",
         "error": "Fout",
+        "vf_label": "Velocity factor (VF): {vf} ({notes})",
     },
 }
 
@@ -61,12 +71,14 @@ class AntennaDesignerApp(tk.Tk):
         self.lang = tk.StringVar(value="en")
         self.units = tk.StringVar(value="metric")
         self.band = tk.StringVar(value="20m")
+        self.antenna_type = tk.StringVar(value="vertical_quarter_wave")
+        self.feed_cable = tk.StringVar(value=next(iter(CABLES)))
 
         self._configure_style()
         self.title(UI_TEXT[self.lang.get()]["window_title"])
         self.configure(bg=BG)
-        self.geometry("760x600")
-        self.minsize(620, 480)
+        self.geometry("780x640")
+        self.minsize(640, 520)
 
         self._build_layout()
         self._calculate()
@@ -118,6 +130,17 @@ class AntennaDesignerApp(tk.Tk):
     def _t(self, key):
         return UI_TEXT[self.lang.get()][key]
 
+    def _antenna_type_values(self):
+        lang = self.lang.get()
+        return [antenna_type_label(t, lang) for t in REGISTRY]
+
+    def _antenna_type_from_label(self, label):
+        lang = self.lang.get()
+        for t in REGISTRY:
+            if antenna_type_label(t, lang) == label:
+                return t
+        return self.antenna_type.get()
+
     def _build_layout(self):
         # Header.
         header = ttk.Frame(self)
@@ -129,23 +152,45 @@ class AntennaDesignerApp(tk.Tk):
         controls_border, controls = self._make_panel(self)
         controls_border.pack(fill="x", padx=12, pady=6)
 
+        self.type_label = ttk.Label(controls, text=self._t("antenna_type"), style="Panel.TLabel")
+        self.type_label.grid(row=0, column=0, padx=8, pady=8, sticky="w")
+        self.type_combo_var = tk.StringVar(value=antenna_type_label(self.antenna_type.get(), self.lang.get()))
+        self.type_combo = ttk.Combobox(
+            controls, textvariable=self.type_combo_var, values=self._antenna_type_values(),
+            state="readonly", width=26,
+        )
+        self.type_combo.grid(row=0, column=1, padx=8, pady=8, sticky="w")
+        self.type_combo.bind("<<ComboboxSelected>>", self._on_type_change)
+
         self.band_label = ttk.Label(controls, text=self._t("band"), style="Panel.TLabel")
-        self.band_label.grid(row=0, column=0, padx=8, pady=8, sticky="w")
+        self.band_label.grid(row=0, column=2, padx=8, pady=8, sticky="w")
         band_combo = ttk.Combobox(controls, textvariable=self.band, values=list(BANDS_MHZ), state="readonly", width=8)
-        band_combo.grid(row=0, column=1, padx=8, pady=8, sticky="w")
+        band_combo.grid(row=0, column=3, padx=8, pady=8, sticky="w")
         band_combo.bind("<<ComboboxSelected>>", lambda e: self._calculate())
 
         self.units_label = ttk.Label(controls, text=self._t("units"), style="Panel.TLabel")
-        self.units_label.grid(row=0, column=2, padx=8, pady=8, sticky="w")
+        self.units_label.grid(row=1, column=0, padx=8, pady=(0, 8), sticky="w")
+        units_frame = ttk.Frame(controls, style="Panel.TFrame")
+        units_frame.grid(row=1, column=1, padx=8, pady=(0, 8), sticky="w")
         for i, val in enumerate(["metric", "imperial"]):
-            rb = ttk.Radiobutton(controls, text=val, value=val, variable=self.units, command=self._calculate)
-            rb.grid(row=0, column=3 + i, padx=4, pady=8, sticky="w")
+            rb = ttk.Radiobutton(units_frame, text=val, value=val, variable=self.units, command=self._calculate)
+            rb.grid(row=0, column=i, padx=(0, 6))
 
         self.lang_label = ttk.Label(controls, text=self._t("language"), style="Panel.TLabel")
-        self.lang_label.grid(row=0, column=5, padx=8, pady=8, sticky="w")
+        self.lang_label.grid(row=1, column=2, padx=8, pady=(0, 8), sticky="w")
+        lang_frame = ttk.Frame(controls, style="Panel.TFrame")
+        lang_frame.grid(row=1, column=3, padx=8, pady=(0, 8), sticky="w")
         for i, val in enumerate(["en", "nl"]):
-            rb = ttk.Radiobutton(controls, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
-            rb.grid(row=0, column=6 + i, padx=4, pady=8, sticky="w")
+            rb = ttk.Radiobutton(lang_frame, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
+            rb.grid(row=0, column=i, padx=(0, 6))
+
+        self.cable_label = ttk.Label(controls, text=self._t("feed_cable"), style="Panel.TLabel")
+        self.cable_label.grid(row=2, column=0, padx=8, pady=(0, 8), sticky="w")
+        cable_combo = ttk.Combobox(controls, textvariable=self.feed_cable, values=list(CABLES), state="readonly", width=20)
+        cable_combo.grid(row=2, column=1, padx=8, pady=(0, 8), sticky="w")
+        cable_combo.bind("<<ComboboxSelected>>", lambda e: self._update_cable_label())
+        self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
+        self.cable_vf_label.grid(row=2, column=2, columnspan=2, padx=8, pady=(0, 8), sticky="w")
 
         # Results panel.
         results_border, results_frame = self._make_panel(self)
@@ -179,44 +224,51 @@ class AntennaDesignerApp(tk.Tk):
         self.pdf_button = ttk.Button(footer, text=self._t("export_pdf"), command=self._export_pdf)
         self.pdf_button.pack(side="left", padx=(8, 0))
 
+        self._update_cable_label()
+
+    def _update_cable_label(self):
+        cable = CABLES[self.feed_cable.get()]
+        self.cable_vf_label.config(
+            text=self._t("vf_label").format(vf=cable["velocity_factor"], notes=cable["notes"])
+        )
+
+    def _on_type_change(self, event=None):
+        self.antenna_type.set(self._antenna_type_from_label(self.type_combo_var.get()))
+        self._calculate()
+
     def _on_lang_change(self):
         t = UI_TEXT[self.lang.get()]
         self.title(t["window_title"])
         self.title_label.config(text=t["window_title"])
+        self.type_label.config(text=t["antenna_type"])
         self.band_label.config(text=t["band"])
         self.units_label.config(text=t["units"])
         self.lang_label.config(text=t["language"])
+        self.cable_label.config(text=t["feed_cable"])
         self.results_title.config(text=t["results"])
         self.advice_title.config(text=t["advice"])
         self.calc_button.config(text=t["calculate"])
         self.svg_button.config(text=t["export_svg"])
         self.pdf_button.config(text=t["export_pdf"])
+        # Re-translate the antenna type dropdown without changing the selected type.
+        self.type_combo["values"] = self._antenna_type_values()
+        self.type_combo_var.set(antenna_type_label(self.antenna_type.get(), self.lang.get()))
+        self._update_cable_label()
         self._calculate()
 
     def _calculate(self):
         lang = self.lang.get()
         units = self.units.get()
         band = self.band.get()
-        self.design = design_vertical(band, lang=lang)
-        d = self.design
+        antenna_type = self.antenna_type.get()
 
-        def fmt(ft, m):
-            return f"{m} m" if units == "metric" else f"{ft} ft"
+        self.design = design_antenna(antenna_type, band, lang=lang)
 
-        t = CALC_OUTPUT[lang]
-        lines = [
-            t["heading"].format(band=d.band),
-            t["freq"].format(freq=d.design_freq_mhz),
-            t["element"].format(length=fmt(d.element_length_ft, d.element_length_m)),
-            t["radials"].format(count=d.radial_count, length=fmt(d.radial_length_ft, d.radial_length_m)),
-            t["impedance"].format(ohms=d.feedpoint_impedance_ohms),
-            t["balun"].format(type=d.balun["type"], ratio=d.balun["ratio"], where=d.balun["where"]),
-        ]
         self.results_text.delete("1.0", "end")
-        self.results_text.insert("1.0", "\n".join(lines))
+        self.results_text.insert("1.0", format_summary(self.design, units=units, lang=lang))
 
         self.advice_text.delete("1.0", "end")
-        self.advice_text.insert("1.0", build_advice(d, units=units, lang=lang))
+        self.advice_text.insert("1.0", build_advice(self.design, units=units, lang=lang))
 
     def _export_svg(self):
         if not self.design:
@@ -224,7 +276,7 @@ class AntennaDesignerApp(tk.Tk):
         path = filedialog.asksaveasfilename(defaultextension=".svg", filetypes=[("SVG", "*.svg")])
         if not path:
             return
-        dwg = draw_vertical(self.design, units=self.units.get(), lang=self.lang.get())
+        dwg = draw_antenna(self.design, units=self.units.get(), lang=self.lang.get())
         dwg.saveas(path)
         messagebox.showinfo(self._t("window_title"), self._t("saved").format(path=path))
 
@@ -235,7 +287,7 @@ class AntennaDesignerApp(tk.Tk):
         if not path:
             return
         try:
-            tile_mast(self.design, path, units=self.units.get(), lang=self.lang.get())
+            tile_radiator(self.design, path, units=self.units.get(), lang=self.lang.get())
         except Exception as exc:  # surfacing to the user, not a recoverable case
             messagebox.showerror(self._t("error"), str(exc))
             return
