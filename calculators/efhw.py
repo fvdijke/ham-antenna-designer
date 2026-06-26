@@ -15,7 +15,7 @@ Formula (documented, not derived/guessed):
 """
 
 from data_store import design_frequency
-from i18n import BALUN_WHERE_EFHW, BALUN_WHY_EFHW
+from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_EFHW, BALUN_WHY_EFHW
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
@@ -44,7 +44,7 @@ def design_efhw(band: str, lang: str = "en") -> AntennaDesign:
         feed_location="end",
         geometry="horizontal_end_fed",
         balun={
-            "type": "49:1 unun",
+            "type": BALUN_TYPE_LABELS["unun_49_1"][lang],
             "ratio": "49:1",
             "where": BALUN_WHERE_EFHW[lang],
             "why": BALUN_WHY_EFHW[lang],

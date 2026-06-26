@@ -7,7 +7,19 @@ since the build steps genuinely differ (radials vs. counterpoise vs. dipole
 legs), but the choke-winding sizing logic is shared where relevant.
 """
 
-from i18n import BUILD_NOTES, BUILD_NOTES_DIPOLE, BUILD_NOTES_EFHW, BUILD_NOTES_LOOP, CHOKE_SPEC
+from i18n import (
+    BUILD_NOTES,
+    BUILD_NOTES_DELTA_LOOP,
+    BUILD_NOTES_DIPOLE,
+    BUILD_NOTES_EDZ,
+    BUILD_NOTES_EFHW,
+    BUILD_NOTES_FIVE_EIGHTHS,
+    BUILD_NOTES_INVERTED_V,
+    BUILD_NOTES_JPOLE,
+    BUILD_NOTES_LOOP,
+    BUILD_NOTES_OCFD,
+    CHOKE_SPEC,
+)
 from models import AntennaDesign
 
 # Rough choke winding guidance by band -- lower bands need more turns of a
@@ -101,11 +113,115 @@ def _advice_loop(design: AntennaDesign, units: str, lang: str) -> str:
     ])
 
 
+def _advice_inverted_v(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_INVERTED_V[lang]
+    leg = design.elements_with_role("radiator")[0]
+    length_str = _length_str(leg.length_ft, leg.length_m, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_ocfd(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_OCFD[lang]
+    short_leg = design.elements_with_role("leg_short")[0]
+    long_leg = design.elements_with_role("leg_long")[0]
+    length_short = _length_str(short_leg.length_ft, short_leg.length_m, units)
+    length_long = _length_str(long_leg.length_ft, long_leg.length_m, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length_short=length_short, length_long=length_long), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_jpole(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_JPOLE[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    stub = design.elements_with_role("matching_stub")[0]
+    length_str = _length_str(radiator.length_ft, radiator.length_m, units)
+    length_stub = _length_str(stub.length_ft, stub.length_m, units)
+    tap_length = _length_str(design.extra["feed_tap_ft"], design.extra["feed_tap_m"], units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str, length_stub=length_stub), "",
+        t["step2"], "",
+        t["step3"].format(tap_length=tap_length, ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_five_eighths(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_FIVE_EIGHTHS[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    radials = design.elements_with_role("radial")
+    length_str = _length_str(radiator.length_ft, radiator.length_m, units)
+    radial_str = _length_str(radials[0].length_ft, radials[0].length_m, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str), "",
+        t["step2"].format(count=len(radials), length_radial=radial_str), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_edz(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_EDZ[lang]
+    leg = design.elements_with_role("radiator")[0]
+    length_str = _length_str(leg.length_ft, leg.length_m, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_delta_loop(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_DELTA_LOOP[lang]
+    wire = design.elements_with_role("radiator")[0]
+    length_str = _length_str(wire.length_ft, wire.length_m, units)
+    side_str = _length_str(wire.length_ft / 3, wire.length_m / 3, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str, side_length=side_str), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
 _ADVICE_BY_TYPE = {
     "vertical_quarter_wave": _advice_vertical,
     "dipole_half_wave": _advice_dipole,
     "efhw": _advice_efhw,
     "loop_full_wave": _advice_loop,
+    "inverted_v_dipole": _advice_inverted_v,
+    "off_center_fed_dipole": _advice_ocfd,
+    "j_pole": _advice_jpole,
+    "five_eighths_vertical": _advice_five_eighths,
+    "extended_double_zepp": _advice_edz,
+    "delta_loop_vertical": _advice_delta_loop,
 }
 
 

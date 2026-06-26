@@ -8,6 +8,13 @@ ROLE_LABELS = {
     "radiator": {"en": "Radiator", "nl": "Stralend element"},
     "radial": {"en": "Radials", "nl": "Radialen"},
     "counterpoise": {"en": "Counterpoise", "nl": "Counterpoise"},
+    "matching_stub": {"en": "Matching stub", "nl": "Aanpasstub"},
+    "leg_short": {"en": "Short leg", "nl": "Kort been"},
+    "leg_long": {"en": "Long leg", "nl": "Lang been"},
+    "reflector": {"en": "Reflector", "nl": "Reflector"},
+    "director": {"en": "Director", "nl": "Director"},
+    "driven_loop": {"en": "Driven loop", "nl": "Gevoede loop"},
+    "reflector_loop": {"en": "Reflector loop", "nl": "Reflector-loop"},
 }
 
 SUMMARY_LABELS = {
@@ -15,16 +22,26 @@ SUMMARY_LABELS = {
         "freq": "Design frequency",
         "impedance": "Feedpoint impedance",
         "ohms": "ohms",
-        "balun": "Balun/unun",
+        "balun": "Matching",
         "each": "each",
     },
     "nl": {
         "freq": "Ontwerpfrequentie",
         "impedance": "Voedingspunt impedantie",
         "ohms": "ohm",
-        "balun": "Balun/unun",
+        "balun": "Aanpassing",
         "each": "elk",
     },
+}
+
+BALUN_TYPE_LABELS = {
+    "current_choke_1_1": {"en": "1:1 current choke", "nl": "1:1 stroomchoke"},
+    "current_balun_1_1": {"en": "1:1 current balun", "nl": "1:1 stroombalun"},
+    "unun_49_1": {"en": "49:1 unun", "nl": "49:1 unun"},
+    "current_balun_4_1": {"en": "4:1 current balun", "nl": "4:1 stroombalun"},
+    "tap_point_match": {"en": "Tap-point match (no balun)", "nl": "Aftakpunt-aanpassing (geen balun)"},
+    "base_loading_coil": {"en": "Base loading coil", "nl": "Spoel aan de voet"},
+    "balanced_tuner": {"en": "Balanced tuner (open-wire feed)", "nl": "Gebalanceerde tuner (open-wire voeding)"},
 }
 
 BALUN_WHERE = {
@@ -67,12 +84,82 @@ BALUN_WHY_LOOP = {
     "nl": "zet de ongebalanceerde coaxvoeding om naar de gebalanceerde loop; de ~100 ohm loopimpedantie tegenover 50 ohm coax geeft een SWR van ongeveer 2:1, wat de meeste radio's zonder externe tuner verdragen",
 }
 
+BALUN_WHERE_OCFD = {
+    "en": "at the feedpoint, 1/3 of the way along the wire from the short end",
+    "nl": "bij het voedingspunt, op 1/3 van de draad gerekend vanaf het korte einde",
+}
+
+BALUN_WHY_OCFD = {
+    "en": "transforms the ~200 ohm off-center feedpoint impedance down to ~50 ohms and converts unbalanced coax to the balanced wire",
+    "nl": "transformeert de ~200 ohm impedantie van het asymmetrische voedingspunt omlaag naar ~50 ohm en zet ongebalanceerde coax om naar de gebalanceerde draad",
+}
+
+BALUN_WHERE_FIVE_EIGHTHS = {
+    "en": "at the base, in series between the element and the coax feedpoint",
+    "nl": "bij de voet, in serie tussen het element en het coax-voedingspunt",
+}
+
+BALUN_WHY_FIVE_EIGHTHS = {
+    "en": "the 5/8-wave element is not naturally resonant; the coil cancels its reactance so the feedpoint presents a low, mostly resistive impedance to the coax",
+    "nl": "het 5/8-golf element is niet vanzelf resonant; de spoel heft de reactantie op zodat het voedingspunt een lage, vrijwel resistieve impedantie aan de coax biedt",
+}
+
+BALUN_WHERE_EDZ = {
+    "en": "at the center feedpoint, where the open-wire/ladder line connects before running to a balanced tuner",
+    "nl": "bij het middenvoedingspunt, waar de open-wire/ladderlijn aansluit voordat deze naar een gebalanceerde tuner loopt",
+}
+
+BALUN_WHY_EDZ = {
+    "en": "feedpoint impedance is high and varies considerably with height (commonly several hundred ohms), so a balanced tuner -- not a fixed-ratio coax balun -- is the practical match",
+    "nl": "de voedingspuntimpedantie is hoog en varieert sterk met de hoogte (vaak enkele honderden ohm), dus een gebalanceerde tuner -- geen vaste-ratio coaxbalun -- is de praktische aanpassing",
+}
+
+BALUN_WHERE_YAGI = {
+    "en": "at the driven element's center feedpoint",
+    "nl": "bij het middenvoedingspunt van het gevoede element",
+}
+
+BALUN_WHY_YAGI = {
+    "en": "converts the unbalanced coax feed to the balanced driven element and suppresses common-mode current, same as on a plain dipole",
+    "nl": "zet de ongebalanceerde coaxvoeding om naar het gebalanceerde gevoede element en onderdrukt common-mode stroom, net als bij een gewone dipool",
+}
+
+BALUN_WHERE_QUAD = {
+    "en": "at the feedpoint, where the coax connects to a break in the driven loop",
+    "nl": "bij het voedingspunt, waar de coax verbinding maakt met een onderbreking in de gevoede loop",
+}
+
+BALUN_WHY_QUAD = {
+    "en": "suppresses common-mode current; with the spacing used here the driven loop's impedance is already close to 50 ohms, so no impedance transformation is needed",
+    "nl": "onderdrukt common-mode stroom; met de hier gebruikte afstand ligt de impedantie van de gevoede loop al dicht bij 50 ohm, dus is geen impedantietransformatie nodig",
+}
+
+JPOLE_BALUN_WHERE = {
+    "en": "at the tap point on the matching stub, about {fraction} of the way up from the shorted bottom",
+    "nl": "op het aftakpunt op de aanpasstub, ongeveer {fraction} omhoog vanaf de kortgesloten onderkant",
+}
+
+JPOLE_BALUN_WHY = {
+    "en": "the tap position itself transforms the impedance to 50 ohms, so the antenna can be fed directly with coax",
+    "nl": "de positie van het aftakpunt transformeert de impedantie zelf naar 50 ohm, waardoor de antenne direct met coax gevoed kan worden",
+}
+
+BALUN_WHERE_MOXON = {
+    "en": "at the feedpoint gap in the center of the driven element",
+    "nl": "bij de voedingsspleet in het midden van het gevoede element",
+}
+
+BALUN_WHY_MOXON = {
+    "en": "converts the unbalanced coax feed to the balanced driven element; the Moxon's geometry already gives a feedpoint impedance close to 50 ohms",
+    "nl": "zet de ongebalanceerde coaxvoeding om naar het gebalanceerde gevoede element; de geometrie van de Moxon geeft al een voedingspuntimpedantie dicht bij 50 ohm",
+}
+
 DRAWING = {
     "en": {
         "element_label": "Element: {length}",
         "radial_label": "Radial x{count}: {length} each",
         "counterpoise_label": "Counterpoise: {length}",
-        "loop_side_label": "Side: {length} (x4)",
+        "loop_side_label": "Side: {length} (x{count})",
         "feedpoint_label": "Feedpoint: ~{ohms} ohms, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- design freq {freq} MHz",
     },
@@ -80,7 +167,7 @@ DRAWING = {
         "element_label": "Element: {length}",
         "radial_label": "Radiaal x{count}: {length} elk",
         "counterpoise_label": "Counterpoise: {length}",
-        "loop_side_label": "Zijde: {length} (x4)",
+        "loop_side_label": "Zijde: {length} (x{count})",
         "feedpoint_label": "Voedingspunt: ~{ohms} ohm, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- ontwerpfreq {freq} MHz",
     },
@@ -140,6 +227,120 @@ BUILD_NOTES_LOOP = {
         "step3": "3. Voedingspunt: onderbreek de draad op het midden van een zijde en verbind daar de coax\n   (via de balun). Verwacht ~{ohms} ohm voedingspuntimpedantie.",
         "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
         "step5": "5. Deze antenne is stiller (minder ruisontvangst) dan een dipool op dezelfde hoogte, en werkt\n   redelijk op meerdere banden met een tuner -- een goede allrounder als je de ruimte voor de omtrek hebt.",
+    },
+}
+
+BUILD_NOTES_INVERTED_V = {
+    "en": {
+        "title": "Build notes -- {band} inverted-V dipole",
+        "step1": "1. Cut two legs, each {length} long, same as a flat dipole.",
+        "step2": "2. Mount with the apex (feedpoint) high on a single mast, legs sloping down at roughly\n   30 degrees to side supports or ground anchors -- needs only one tall support, not two.",
+        "step3": "3. Feedpoint: connect coax through the balun at the apex. Expect ~{ohms} ohms feedpoint\n   impedance -- a bit lower than a flat dipole's 73 ohms because of the bent geometry.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the apex -- {balun_why}.",
+        "step5": "5. Keep the leg ends at least a few meters off the ground and away from metal objects,\n   which detune the antenna and can present a shock/RF burn hazard at the high-voltage tips.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} inverted-V dipool",
+        "step1": "1. Knip twee benen van elk {length} lang, net als bij een vlakke dipool.",
+        "step2": "2. Monteer met de top (voedingspunt) hoog aan een enkele mast, benen onder ongeveer\n   30 graden naar zij-ankers of grondankers -- vereist maar één hoge steun, geen twee.",
+        "step3": "3. Voedingspunt: verbind de coax via de balun bij de top. Verwacht ~{ohms} ohm voedingspuntimpedantie\n   -- iets lager dan de 73 ohm van een vlakke dipool door de gebogen geometrie.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij de top -- {balun_why}.",
+        "step5": "5. Houd de beneindes minstens een paar meter van de grond en weg van metalen objecten,\n   die de antenne ontstemmen en bij de hoogspanningstips een schok-/RF-brandgevaar kunnen geven.",
+    },
+}
+
+BUILD_NOTES_OCFD = {
+    "en": {
+        "title": "Build notes -- {band} off-center-fed dipole (Windom)",
+        "step1": "1. Cut the short leg to {length_short} and the long leg to {length_long} -- this 1:2 split\n   is what gives the off-center feed its characteristic ~200 ohm impedance.",
+        "step2": "2. Mount horizontally (or as an inverted-V) like a regular dipole -- the asymmetry is only\n   in the feedpoint location, not the mounting style.",
+        "step3": "3. Feedpoint: connect coax through the 4:1 balun at the 1/3 point. Expect ~{ohms} ohms\n   feedpoint impedance before the balun transforms it down to ~50 ohms.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. This antenna is popular for rough multiband coverage with a tuner -- don't expect a\n   flat 1:1 SWR on every band, that's normal for this design.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} asymmetrisch gevoede dipool (Windom)",
+        "step1": "1. Knip het korte been op {length_short} en het lange been op {length_long} -- deze 1:2-verdeling\n   geeft de asymmetrische voeding zijn karakteristieke impedantie van ~200 ohm.",
+        "step2": "2. Monteer horizontaal (of als inverted-V) zoals een gewone dipool -- de asymmetrie zit\n   alleen in de positie van het voedingspunt, niet in de montagestijl.",
+        "step3": "3. Voedingspunt: verbind de coax via de 4:1 balun op het 1/3-punt. Verwacht ~{ohms} ohm\n   voedingspuntimpedantie voordat de balun dit omlaag transformeert naar ~50 ohm.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Deze antenne is populair voor ruwe multiband-dekking met een tuner -- verwacht geen\n   vlakke 1:1 SWR op elke band, dat is normaal voor dit ontwerp.",
+    },
+}
+
+BUILD_NOTES_JPOLE = {
+    "en": {
+        "title": "Build notes -- {band} J-pole",
+        "step1": "1. Cut the radiator to {length} and the stub to {length_stub}, mounted parallel\n   about 2.5 cm (1 inch) apart.",
+        "step2": "2. Join radiator and stub at the BOTTOM with a solid bridge/short -- this is what makes\n   it a \"J\" shape (the stub is shorted, the radiator is open at the bottom).",
+        "step3": "3. Feedpoint: connect coax center conductor and shield across the stub, tapped {tap_length}\n   up from the shorted bottom. Expect ~{ohms} ohms at this tap point.",
+        "step4": "4. Matching: {balun_type} -- {balun_why}. Slide the tap point up/down a little while\n   watching SWR to fine-tune; this is the normal way to dial in a J-pole.",
+        "step5": "5. No radials or ground plane needed -- mount on a non-conductive mast (PVC/fiberglass),\n   as high and clear of metal/structures as practical for best VHF/UHF range.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} J-pole",
+        "step1": "1. Knip de straler op {length} en de stub op {length_stub}, parallel gemonteerd\n   op ongeveer 2,5 cm afstand van elkaar.",
+        "step2": "2. Verbind straler en stub ONDERAAN met een stevige brug/kortsluiting -- dit geeft\n   de \"J\"-vorm (de stub is kortgesloten, de straler is onderaan open).",
+        "step3": "3. Voedingspunt: verbind coax-kern en -scherm over de stub, afgetakt op {tap_length}\n   vanaf de kortgesloten onderkant. Verwacht ~{ohms} ohm op dit aftakpunt.",
+        "step4": "4. Aanpassing: {balun_type} -- {balun_why}. Schuif het aftakpunt iets op/neer terwijl je\n   de SWR observeert om fijn af te stemmen; dit is de normale manier om een J-pole af te stemmen.",
+        "step5": "5. Geen radialen of grondvlak nodig -- monteer op een niet-geleidende mast (PVC/glasvezel),\n   zo hoog en vrij van metaal/constructies als praktisch voor het beste VHF/UHF-bereik.",
+    },
+}
+
+BUILD_NOTES_FIVE_EIGHTHS = {
+    "en": {
+        "title": "Build notes -- {band} 5/8-wave gain vertical",
+        "step1": "1. Cut the element to {length} -- noticeably longer than a quarter-wave vertical\n   for the same band, which is where the extra gain comes from.",
+        "step2": "2. Lay out {count} radials, each {length_radial} long, same as a quarter-wave vertical's ground plane.",
+        "step3": "3. Feedpoint: the element alone does NOT present a clean 50 ohm match -- it's reactive.\n   Expect ~{ohms} ohms only AFTER the loading coil is correctly sized and installed.",
+        "step4": "4. Matching: {balun_type} -- {balun_why}. This coil's exact inductance depends on your\n   element diameter and material; use an antenna analyzer to trim turns for minimum SWR\n   rather than relying on a fixed turn count.",
+        "step5": "5. This is the most finicky antenna in this list to get right -- budget time for SWR\n   sweeping and coil adjustment, it won't be a cut-once-done antenna like the others.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} 5/8-golf gain-verticaal",
+        "step1": "1. Knip het element op {length} -- merkbaar langer dan een kwartgolf verticaal\n   voor dezelfde band, daar komt de extra winst vandaan.",
+        "step2": "2. Leg {count} radialen aan, elk {length_radial} lang, net als het grondvlak van een kwartgolf verticaal.",
+        "step3": "3. Voedingspunt: het element alleen geeft GEEN schone 50 ohm match -- het is reactief.\n   Verwacht ~{ohms} ohm pas NA correcte dimensionering en installatie van de spoel.",
+        "step4": "4. Aanpassing: {balun_type} -- {balun_why}. De exacte inductantie van deze spoel hangt af\n   van je elementdiameter en materiaal; gebruik een antenne-analyzer om wikkelingen te trimmen\n   voor minimale SWR in plaats van te vertrouwen op een vast aantal wikkelingen.",
+        "step5": "5. Dit is de lastigste antenne in deze lijst om goed te krijgen -- reserveer tijd voor\n   SWR-metingen en spoelafstelling, het is geen eenmalig-knippen-klaar antenne zoals de rest.",
+    },
+}
+
+BUILD_NOTES_EDZ = {
+    "en": {
+        "title": "Build notes -- {band} extended double Zepp (EDZ)",
+        "step1": "1. Cut two legs, each {length} long -- noticeably longer than a half-wave dipole's legs\n   for the same band; this extra length is what produces the gain.",
+        "step2": "2. Mount horizontally like a dipole, as high and as straight as your supports allow --\n   this antenna rewards height more than most.",
+        "step3": "3. Feedpoint: connect open-wire/ladder line at the center, running to a balanced tuner\n   (not direct coax). Expect roughly ~{ohms} ohms, but treat this as a rough number --\n   it shifts a lot with height and surroundings.",
+        "step4": "4. Matching: {balun_type} -- {balun_why}.",
+        "step5": "5. Don't substitute coax feed without a 4:1+ balun and expect a clean match -- this\n   antenna's whole design assumes a balanced feedline and a tuner doing the final matching.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} extended double Zepp (EDZ)",
+        "step1": "1. Knip twee benen van elk {length} lang -- merkbaar langer dan de benen van een halve-golf\n   dipool voor dezelfde band; deze extra lengte levert de winst.",
+        "step2": "2. Monteer horizontaal zoals een dipool, zo hoog en recht als je steunpunten toelaten --\n   deze antenne beloont hoogte meer dan de meeste andere.",
+        "step3": "3. Voedingspunt: verbind open-wire/ladderlijn in het midden, lopend naar een gebalanceerde\n   tuner (niet direct coax). Verwacht ruwweg ~{ohms} ohm, maar zie dit als een ruw getal --\n   het verschuift sterk met hoogte en omgeving.",
+        "step4": "4. Aanpassing: {balun_type} -- {balun_why}.",
+        "step5": "5. Vervang de voeding niet door coax zonder 4:1+ balun en verwacht een schone match --\n   het hele ontwerp van deze antenne gaat uit van een gebalanceerde voedingslijn met een tuner\n   die de uiteindelijke aanpassing doet.",
+    },
+}
+
+BUILD_NOTES_DELTA_LOOP = {
+    "en": {
+        "title": "Build notes -- {band} vertical delta loop",
+        "step1": "1. Cut ONE continuous wire to the total length {length}. Mark fold points at each third\n   ({side_length} apart) -- these become the three corners of the triangle.",
+        "step2": "2. Hang as a triangle between 3 supports, oriented vertically (one side along the\n   ground/low, apex high) -- vertical orientation is what gives the low-angle DX pattern.",
+        "step3": "3. Feedpoint: break the wire at the midpoint of the bottom side and connect the coax there\n   (through the balun). Expect ~{ohms} ohms feedpoint impedance.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. Like the horizontal loop, this is quieter than a dipole, but the vertical orientation\n   favors DX over local/NVIS contacts -- pick orientation based on what you want to work.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} verticale delta-loop",
+        "step1": "1. Knip EEN doorlopende draad af op de totale lengte {length}. Markeer vouwpunten bij elk derde\n   ({side_length} uit elkaar) -- dit worden de drie hoeken van de driehoek.",
+        "step2": "2. Hang als een driehoek tussen 3 steunpunten, verticaal georienteerd (een zijde laag/bij\n   de grond, top hoog) -- de verticale orientatie geeft het lage-hoek DX-patroon.",
+        "step3": "3. Voedingspunt: onderbreek de draad op het midden van de onderste zijde en verbind daar\n   de coax (via de balun). Verwacht ~{ohms} ohm voedingspuntimpedantie.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Net als de horizontale loop is deze stiller dan een dipool, maar de verticale orientatie\n   bevoordeelt DX over lokale/NVIS-verbindingen -- kies de orientatie op basis van wat je wilt werken.",
     },
 }
 

@@ -176,7 +176,7 @@ def _draw_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin_m
     feed_y = y1
     dwg.add(dwg.circle(center=(feed_x, feed_y), r=4, fill="black"))
 
-    dwg.add(dwg.text(t["loop_side_label"].format(length=_fmt_length(side_m, units)),
+    dwg.add(dwg.text(t["loop_side_label"].format(length=_fmt_length(side_m, units), count=4),
                       insert=(x0, y0 - 5), font_size="8", font_family="sans-serif"))
     dwg.add(dwg.text(
         t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
@@ -187,11 +187,170 @@ def _draw_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin_m
     return dwg
 
 
+def _draw_vertical_loop(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """Vertical delta loop drawn as an equilateral-ish triangle, fed at the
+    midpoint of the bottom side."""
+    t = DRAWING[lang]
+    wire = design.elements_with_role("radiator")[0]
+    side_m = wire.length_m / 3
+    side_mm = side_m * MM_PER_M
+
+    width_mm = side_mm + margin_mm * 2
+    height_mm = side_mm * 0.87 + margin_mm * 2  # equilateral triangle height ~= side * sin(60)
+
+    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    _add_arrow_marker(dwg)
+
+    bottom_y = height_mm - margin_mm
+    left_x = margin_mm
+    right_x = margin_mm + side_mm
+    apex_x = (left_x + right_x) / 2
+    apex_y = margin_mm
+
+    dwg.add(dwg.polygon(points=[(left_x, bottom_y), (right_x, bottom_y), (apex_x, apex_y)],
+                         stroke="black", fill="none", stroke_width=2))
+
+    feed_x = (left_x + right_x) / 2
+    dwg.add(dwg.circle(center=(feed_x, bottom_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(t["loop_side_label"].format(length=_fmt_length(side_m, units), count=3),
+                      insert=(left_x, bottom_y + 10), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
+def _draw_inverted_v(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """Inverted-V dipole: apex at top center, legs sloping down on each side."""
+    import math as _math
+
+    t = DRAWING[lang]
+    leg_a, leg_b = design.elements_with_role("radiator")[:2]
+    leg_mm = leg_a.length_m * MM_PER_M
+    droop_deg = 30  # legs droop 30 degrees below horizontal, a common practical angle
+
+    dx = leg_mm * math.cos(_math.radians(droop_deg))
+    dy = leg_mm * math.sin(_math.radians(droop_deg))
+
+    width_mm = dx * 2 + margin_mm * 2
+    height_mm = dy + margin_mm * 2
+
+    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    _add_arrow_marker(dwg)
+
+    apex_x = width_mm / 2
+    apex_y = margin_mm
+    left_x, left_y = apex_x - dx, apex_y + dy
+    right_x, right_y = apex_x + dx, apex_y + dy
+
+    dwg.add(dwg.line(start=(apex_x, apex_y), end=(left_x, left_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(apex_x, apex_y), end=(right_x, right_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.circle(center=(apex_x, apex_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(leg_a.length_m, units)),
+                      insert=(apex_x + 5, apex_y + dy / 2), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
+def _draw_horizontal_off_center_fed(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """OCF dipole: asymmetric legs running left/right from an off-center feedpoint."""
+    t = DRAWING[lang]
+    short_leg = design.elements_with_role("leg_short")[0]
+    long_leg = design.elements_with_role("leg_long")[0]
+    short_mm = short_leg.length_m * MM_PER_M
+    long_mm = long_leg.length_m * MM_PER_M
+
+    width_mm = short_mm + long_mm + margin_mm * 2
+    height_mm = margin_mm * 2 + 20
+
+    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    _add_arrow_marker(dwg)
+
+    feed_x = margin_mm + short_mm
+    y = height_mm / 2
+    left_x = margin_mm
+    right_x = margin_mm + short_mm + long_mm
+
+    dwg.add(dwg.line(start=(left_x, y), end=(right_x, y), stroke="black", stroke_width=2))
+    dwg.add(dwg.circle(center=(feed_x, y), r=4, fill="black"))
+
+    dim_y = y + 15
+    dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(short_leg.length_m, units)),
+                      insert=((left_x + feed_x) / 2 - 10, dim_y), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(long_leg.length_m, units)),
+                      insert=((feed_x + right_x) / 2 - 10, dim_y), font_size="8", font_family="sans-serif"))
+
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
+def _draw_j_pole(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """J-pole: long radiator and short stub, parallel, joined at the bottom,
+    with the coax feed tap marked on the stub."""
+    t = DRAWING[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    stub = design.elements_with_role("matching_stub")[0]
+    radiator_mm = radiator.length_m * MM_PER_M
+    stub_mm = stub.length_m * MM_PER_M
+    gap_mm = 25.0
+
+    width_mm = gap_mm + margin_mm * 2
+    height_mm = radiator_mm + margin_mm * 2
+
+    dwg = svgwrite.Drawing(size=(f"{width_mm}mm", f"{height_mm}mm"), viewBox=f"0 0 {width_mm} {height_mm}")
+    _add_arrow_marker(dwg)
+
+    base_y = height_mm - margin_mm
+    radiator_x = margin_mm
+    stub_x = margin_mm + gap_mm
+    radiator_top_y = base_y - radiator_mm
+    stub_top_y = base_y - stub_mm
+
+    dwg.add(dwg.line(start=(radiator_x, base_y), end=(radiator_x, radiator_top_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(stub_x, base_y), end=(stub_x, stub_top_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(radiator_x, base_y), end=(stub_x, base_y), stroke="black", stroke_width=2))  # shorted bottom bridge
+
+    tap_fraction = design.extra.get("feed_tap_fraction", 0.2)
+    tap_y = base_y - stub_mm * tap_fraction
+    dwg.add(dwg.circle(center=(stub_x, tap_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(radiator.length_m, units)),
+                      insert=(radiator_x - 22, (base_y + radiator_top_y) / 2), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["element_label"].format(length=_fmt_length(stub.length_m, units)),
+                      insert=(stub_x + 5, (base_y + stub_top_y) / 2), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, base_y + 12), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
 _RENDERERS = {
     "vertical": _draw_vertical,
     "horizontal_center_fed": _draw_horizontal_center_fed,
     "horizontal_end_fed": _draw_horizontal_end_fed,
     "horizontal_loop": _draw_horizontal_loop,
+    "vertical_loop": _draw_vertical_loop,
+    "inverted_v": _draw_inverted_v,
+    "horizontal_off_center_fed": _draw_horizontal_off_center_fed,
+    "j_pole": _draw_j_pole,
 }
 
 

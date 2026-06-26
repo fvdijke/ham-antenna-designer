@@ -22,5 +22,59 @@
     "label_nl": "Volledige-golf horizontale loop",
     "geometry": "horizontal_loop",
     "feed_location": "side"
+  },
+  "inverted_v_dipole": {
+    "label_en": "Inverted-V dipole",
+    "label_nl": "Inverted-V dipool",
+    "geometry": "inverted_v",
+    "feed_location": "apex"
+  },
+  "off_center_fed_dipole": {
+    "label_en": "Off-center-fed dipole (Windom)",
+    "label_nl": "Asymmetrisch gevoede dipool (Windom)",
+    "geometry": "horizontal_off_center_fed",
+    "feed_location": "off_center"
+  },
+  "j_pole": {
+    "label_en": "J-pole (VHF/UHF)",
+    "label_nl": "J-pole (VHF/UHF)",
+    "geometry": "j_pole",
+    "feed_location": "stub_tap"
+  },
+  "five_eighths_vertical": {
+    "label_en": "5/8-wave gain vertical",
+    "label_nl": "5/8-golf gain-verticaal",
+    "geometry": "vertical",
+    "feed_location": "base"
+  },
+  "extended_double_zepp": {
+    "label_en": "Extended double Zepp (EDZ)",
+    "label_nl": "Extended double Zepp (EDZ)",
+    "geometry": "horizontal_center_fed",
+    "feed_location": "center"
+  },
+  "delta_loop_vertical": {
+    "label_en": "Vertical delta loop",
+    "label_nl": "Verticale delta-loop",
+    "geometry": "vertical_loop",
+    "feed_location": "bottom_side"
+  },
+  "yagi_3_element": {
+    "label_en": "3-element Yagi",
+    "label_nl": "3-elements Yagi",
+    "geometry": "yagi",
+    "feed_location": "driven_element"
+  },
+  "quad_2_element": {
+    "label_en": "2-element cubical quad",
+    "label_nl": "2-elements kubieke quad",
+    "geometry": "quad",
+    "feed_location": "driven_element"
+  },
+  "moxon_2_element": {
+    "label_en": "Moxon rectangle",
+    "label_nl": "Moxon-rechthoek",
+    "geometry": "moxon",
+    "feed_location": "driven_element"
   }
 }

@@ -10,7 +10,7 @@ Formulas (documented, not derived/guessed):
 """
 
 from data_store import design_frequency
-from i18n import BALUN_WHERE, BALUN_WHY
+from i18n import BALUN_TYPE_LABELS, BALUN_WHERE, BALUN_WHY
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
@@ -40,7 +40,7 @@ def design_vertical(band: str, radial_count: int = 4, lang: str = "en") -> Anten
         feed_location="base",
         geometry="vertical",
         balun={
-            "type": "1:1 current choke",
+            "type": BALUN_TYPE_LABELS["current_choke_1_1"][lang],
             "ratio": "1:1",
             "where": BALUN_WHERE[lang],
             "why": BALUN_WHY[lang],

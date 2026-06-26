@@ -14,7 +14,7 @@ Formula (documented, not derived/guessed):
 """
 
 from data_store import design_frequency
-from i18n import BALUN_WHERE_LOOP, BALUN_WHY_LOOP
+from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_LOOP, BALUN_WHY_LOOP
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
@@ -36,7 +36,7 @@ def design_loop(band: str, lang: str = "en") -> AntennaDesign:
         feed_location="side",
         geometry="horizontal_loop",
         balun={
-            "type": "1:1 current balun",
+            "type": BALUN_TYPE_LABELS["current_balun_1_1"][lang],
             "ratio": "1:1",
             "where": BALUN_WHERE_LOOP[lang],
             "why": BALUN_WHY_LOOP[lang],
