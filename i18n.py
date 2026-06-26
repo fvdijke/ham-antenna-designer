@@ -57,11 +57,22 @@ BALUN_WHY_EFHW = {
     "nl": "transformeert de hoge impedantie (ongeveer 2000-4500 ohm) op het end-fed punt omlaag naar ~50 ohm voor de coax/radio",
 }
 
+BALUN_WHERE_LOOP = {
+    "en": "at the feedpoint, where the coax connects to a break in the wire at the midpoint of one side",
+    "nl": "bij het voedingspunt, waar de coax verbinding maakt met een onderbreking in de draad op het midden van een zijde",
+}
+
+BALUN_WHY_LOOP = {
+    "en": "converts the unbalanced coax feed to the balanced loop; the ~100 ohm loop impedance against 50 ohm coax gives a roughly 2:1 SWR, which most radios tolerate without an external tuner",
+    "nl": "zet de ongebalanceerde coaxvoeding om naar de gebalanceerde loop; de ~100 ohm loopimpedantie tegenover 50 ohm coax geeft een SWR van ongeveer 2:1, wat de meeste radio's zonder externe tuner verdragen",
+}
+
 DRAWING = {
     "en": {
         "element_label": "Element: {length}",
         "radial_label": "Radial x{count}: {length} each",
         "counterpoise_label": "Counterpoise: {length}",
+        "loop_side_label": "Side: {length} (x4)",
         "feedpoint_label": "Feedpoint: ~{ohms} ohms, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- design freq {freq} MHz",
     },
@@ -69,31 +80,9 @@ DRAWING = {
         "element_label": "Element: {length}",
         "radial_label": "Radiaal x{count}: {length} elk",
         "counterpoise_label": "Counterpoise: {length}",
+        "loop_side_label": "Zijde: {length} (x4)",
         "feedpoint_label": "Voedingspunt: ~{ohms} ohm, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- ontwerpfreq {freq} MHz",
-    },
-}
-
-TILE_PDF = {
-    "nl": {
-        "title": "{label} ({band}) -- afdruksjabloon op echte schaal",
-        "instructions": "Print op 100% schaal (geen 'aanpassen aan pagina'), knip af tot de overlapstrook en plak de pagina's aaneen met de uitlijnmarkeringen.",
-        "element_label": "Element: {length}",
-        "cut_count_note": "Knip {count}x van dit sjabloon (gelijke lengte elementen).",
-        "tile_label": "Tegel rij {row}/{rows}, kolom {col}/{cols} -- lijn overlapstrook uit met buurtegel",
-        "other_elements_note": "Overige elementen niet op schaal afgedrukt -- meet ze met een rolmaat (zie bouwnotities): {detail}",
-        "saved": "Sjabloon van {tiles} pagina('s) op echte schaal opgeslagen in {path}",
-        "print_hint": "Print op 100% schaal (geen 'aanpassen aan pagina'), knip bij tot de uitlijnmarkering en plak de tegels aan elkaar.",
-    },
-    "en": {
-        "title": "{label} ({band}) -- true-to-scale print template",
-        "instructions": "Print at 100% scale (no 'fit to page'), trim to the overlap strip, and tape pages together using the alignment marks.",
-        "element_label": "Element: {length}",
-        "cut_count_note": "Cut {count}x from this template (equal-length elements).",
-        "tile_label": "Tile row {row}/{rows}, col {col}/{cols} -- align overlap strip with neighbor",
-        "other_elements_note": "Other elements not printed to scale -- measure with a tape measure (see build notes): {detail}",
-        "saved": "Saved {tiles}-page true-to-scale template to {path}",
-        "print_hint": "Print at 100% scale (no 'fit to page'), trim to the overlap strip, and tape tiles together.",
     },
 }
 
@@ -132,6 +121,25 @@ BUILD_NOTES_EFHW = {
         "step3": "3. Voedingspunt: verbind het hoge-impedantie-einde van de straler en de counterpoise met de unun.\n   Verwacht ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert naar ~50 ohm.",
         "step4": "4. Unun: gebruik een {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
         "step5": "5. Routering: houd de counterpoise weg van de stralende draad (laat ze niet dicht parallel lopen) --\n   en houd de straler weg van metalen constructies, die hem ontstemmen.",
+    },
+}
+
+BUILD_NOTES_LOOP = {
+    "en": {
+        "title": "Build notes -- {band} full-wave horizontal loop",
+        "step1": "1. Cut ONE continuous wire to the total length {length}. Mark fold points at each quarter\n   ({side_length} apart) -- these become the four corners of the loop.",
+        "step2": "2. Hang the wire as a square (or circle/triangle -- shape barely matters, only total length does)\n   between 4 supports at a consistent height. Keep it under light tension; sag shifts resonance.",
+        "step3": "3. Feedpoint: break the wire at the midpoint of one side and connect the coax there\n   (through the balun). Expect ~{ohms} ohms feedpoint impedance.",
+        "step4": "4. Balun: use {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. This antenna is quieter (lower noise pickup) than a dipole at the same height, and works\n   reasonably on multiple bands with a tuner -- a good all-rounder if you have the space for the perimeter.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} volledige-golf horizontale loop",
+        "step1": "1. Knip EEN doorlopende draad af op de totale lengte {length}. Markeer vouwpunten bij elk kwart\n   ({side_length} uit elkaar) -- dit worden de vier hoeken van de loop.",
+        "step2": "2. Hang de draad op als vierkant (of cirkel/driehoek -- de vorm maakt weinig uit, alleen de totale lengte telt)\n   tussen 4 steunpunten op gelijke hoogte. Houd licht onder spanning; doorzakken verschuift de resonantie.",
+        "step3": "3. Voedingspunt: onderbreek de draad op het midden van een zijde en verbind daar de coax\n   (via de balun). Verwacht ~{ohms} ohm voedingspuntimpedantie.",
+        "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Deze antenne is stiller (minder ruisontvangst) dan een dipool op dezelfde hoogte, en werkt\n   redelijk op meerdere banden met een tuner -- een goede allrounder als je de ruimte voor de omtrek hebt.",
     },
 }
 

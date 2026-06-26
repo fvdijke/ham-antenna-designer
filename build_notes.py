@@ -7,7 +7,7 @@ since the build steps genuinely differ (radials vs. counterpoise vs. dipole
 legs), but the choke-winding sizing logic is shared where relevant.
 """
 
-from i18n import BUILD_NOTES, BUILD_NOTES_DIPOLE, BUILD_NOTES_EFHW, CHOKE_SPEC
+from i18n import BUILD_NOTES, BUILD_NOTES_DIPOLE, BUILD_NOTES_EFHW, BUILD_NOTES_LOOP, CHOKE_SPEC
 from models import AntennaDesign
 
 # Rough choke winding guidance by band -- lower bands need more turns of a
@@ -85,10 +85,27 @@ def _advice_efhw(design: AntennaDesign, units: str, lang: str) -> str:
     ])
 
 
+def _advice_loop(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_LOOP[lang]
+    wire = design.elements_with_role("radiator")[0]
+    length_str = _length_str(wire.length_ft, wire.length_m, units)
+    side_str = _length_str(wire.length_ft / 4, wire.length_m / 4, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=length_str, side_length=side_str), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
 _ADVICE_BY_TYPE = {
     "vertical_quarter_wave": _advice_vertical,
     "dipole_half_wave": _advice_dipole,
     "efhw": _advice_efhw,
+    "loop_full_wave": _advice_loop,
 }
 
 

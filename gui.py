@@ -3,9 +3,13 @@
 Visual style matches HAMIOS: dark background, amber (#FFB000) accents,
 amber-bordered panels. Lets you pick an antenna type, band, units, and
 language, see the computed design + build advice, and export the scaled SVG
-drawing or the true-to-scale radiator print template (PDF). A feed-cable
-dropdown shows velocity factor for reference (per the original cable/VF list
-requirement) -- informational only, not yet wired into a feedline calculation.
+drawing. A feed-cable dropdown shows velocity factor for reference (per the
+original cable/VF list requirement) -- informational only, not yet wired
+into a feedline calculation.
+
+No print-template (PDF) export -- by design, this tool gives you precise
+measurements and a scaled drawing; cutting wire/tubing is done with a tape
+measure against those numbers, not a taped-together paper template.
 """
 
 import tkinter as tk
@@ -17,7 +21,6 @@ from data_store import BANDS_MHZ, CABLES, antenna_type_label
 from drawing import draw_antenna
 from format_text import format_summary
 from registry import REGISTRY, design as design_antenna
-from tile_pdf import tile_radiator
 
 BG = "#1a1a1a"
 PANEL_BG = "#1f1f1f"
@@ -38,7 +41,6 @@ UI_TEXT = {
         "feed_cable": "Feed cable (VF)",
         "calculate": "Calculate",
         "export_svg": "Export SVG drawing...",
-        "export_pdf": "Export radiator print template (PDF)...",
         "results": "Design",
         "advice": "Build notes",
         "saved": "Saved to {path}",
@@ -54,7 +56,6 @@ UI_TEXT = {
         "feed_cable": "Voedingskabel (VF)",
         "calculate": "Berekenen",
         "export_svg": "SVG-tekening exporteren...",
-        "export_pdf": "Stralerelement-sjabloon exporteren (PDF)...",
         "results": "Ontwerp",
         "advice": "Bouwnotities",
         "saved": "Opgeslagen naar {path}",
@@ -221,8 +222,6 @@ class AntennaDesignerApp(tk.Tk):
         self.calc_button.pack(side="left")
         self.svg_button = ttk.Button(footer, text=self._t("export_svg"), command=self._export_svg)
         self.svg_button.pack(side="left", padx=(8, 0))
-        self.pdf_button = ttk.Button(footer, text=self._t("export_pdf"), command=self._export_pdf)
-        self.pdf_button.pack(side="left", padx=(8, 0))
 
         self._update_cable_label()
 
@@ -249,7 +248,6 @@ class AntennaDesignerApp(tk.Tk):
         self.advice_title.config(text=t["advice"])
         self.calc_button.config(text=t["calculate"])
         self.svg_button.config(text=t["export_svg"])
-        self.pdf_button.config(text=t["export_pdf"])
         # Re-translate the antenna type dropdown without changing the selected type.
         self.type_combo["values"] = self._antenna_type_values()
         self.type_combo_var.set(antenna_type_label(self.antenna_type.get(), self.lang.get()))
@@ -280,18 +278,6 @@ class AntennaDesignerApp(tk.Tk):
         dwg.saveas(path)
         messagebox.showinfo(self._t("window_title"), self._t("saved").format(path=path))
 
-    def _export_pdf(self):
-        if not self.design:
-            return
-        path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF", "*.pdf")])
-        if not path:
-            return
-        try:
-            tile_radiator(self.design, path, units=self.units.get(), lang=self.lang.get())
-        except Exception as exc:  # surfacing to the user, not a recoverable case
-            messagebox.showerror(self._t("error"), str(exc))
-            return
-        messagebox.showinfo(self._t("window_title"), self._t("saved").format(path=path))
 
 
 if __name__ == "__main__":

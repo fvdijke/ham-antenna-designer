@@ -16,5 +16,11 @@
     "label_nl": "End-fed halve golf (EFHW)",
     "geometry": "horizontal_end_fed",
     "feed_location": "end"
+  },
+  "loop_full_wave": {
+    "label_en": "Full-wave horizontal loop",
+    "label_nl": "Volledige-golf horizontale loop",
+    "geometry": "horizontal_loop",
+    "feed_location": "side"
   }
 }

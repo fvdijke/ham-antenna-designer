@@ -155,10 +155,43 @@ def _draw_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, margi
     return dwg
 
 
+def _draw_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """Full-wave loop drawn as a square, fed at the midpoint of one side."""
+    t = DRAWING[lang]
+    wire = design.elements_with_role("radiator")[0]
+    side_m = wire.length_m / 4
+    side_mm = side_m * MM_PER_M
+
+    size_mm = side_mm + margin_mm * 2
+    dwg = svgwrite.Drawing(size=(f"{size_mm}mm", f"{size_mm}mm"), viewBox=f"0 0 {size_mm} {size_mm}")
+    _add_arrow_marker(dwg)
+
+    x0, y0 = margin_mm, margin_mm
+    x1, y1 = margin_mm + side_mm, margin_mm + side_mm
+
+    dwg.add(dwg.polygon(points=[(x0, y0), (x1, y0), (x1, y1), (x0, y1)],
+                         stroke="black", fill="none", stroke_width=2))
+
+    feed_x = (x0 + x1) / 2
+    feed_y = y1
+    dwg.add(dwg.circle(center=(feed_x, feed_y), r=4, fill="black"))
+
+    dwg.add(dwg.text(t["loop_side_label"].format(length=_fmt_length(side_m, units)),
+                      insert=(x0, y0 - 5), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, size_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
 _RENDERERS = {
     "vertical": _draw_vertical,
     "horizontal_center_fed": _draw_horizontal_center_fed,
     "horizontal_end_fed": _draw_horizontal_end_fed,
+    "horizontal_loop": _draw_horizontal_loop,
 }
 
 
