@@ -70,12 +70,24 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
     element_u = radiator.length_m * scale
     radial_u = (radials[0].length_m if radials else 0) * scale
 
-    height = element_u + margin * 2
+    # Fan radials across a downward-facing arc (not a full 360 circle) so
+    # none of them point back up into the vertical element -- matches how
+    # a real radial system is usually drawn/photographed from the side.
+    n = len(radials)
+    spread_deg = 150.0
+    angle_step = spread_deg / (n - 1) if n > 1 else 0.0
+    start_deg = -spread_deg / 2 if n > 1 else 0.0
+    angles_deg = [start_deg + angle_step * i for i in range(n)]
+    drop_factor = 0.6  # vertical flatten for a side-view perspective
+    max_drop = max((radial_u * math.cos(math.radians(a)) * drop_factor for a in angles_deg), default=0.0)
+    label_room = 24.0  # space below the radial tips for their length labels
+
+    height = element_u + margin * 2 + max_drop + label_room
     width = radial_u * 2 + margin * 2 if radials else element_u * 0.6 + margin * 2
     s = Scene(width, height)
 
     base_x = width / 2
-    base_y = height - margin
+    base_y = height - margin - max_drop - label_room
     top_y = base_y - element_u
 
     s.line(margin / 2, base_y, width - margin / 2, base_y, width=1, dashed=True)
@@ -86,14 +98,19 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
     s.dim_line(dim_x, base_y, dim_x, top_y)
     s.text(dim_x + 5, (base_y + top_y) / 2, t["element_label"].format(length=_fmt_length(radiator.length_m, units)))
 
-    n = len(radials)
-    for i, radial in enumerate(radials):
-        angle_rad = math.radians((360.0 / n) * i)
+    for i, (angle_deg, radial) in enumerate(zip(angles_deg, radials)):
+        angle_rad = math.radians(angle_deg)
         end_x = base_x + radial_u * math.sin(angle_rad)
-        end_y = base_y + radial_u * math.cos(angle_rad) * 0.3
+        end_y = base_y + radial_u * math.cos(angle_rad) * drop_factor
         s.line(base_x, base_y, end_x, end_y, width=1)
-        if i == 0:
-            s.text(end_x + 5, end_y, t["radial_label"].format(count=n, length=_fmt_length(radial.length_m, units)))
+        s.text(end_x + 4, end_y, t["radial_each_label"].format(index=i + 1, length=_fmt_length(radial.length_m, units)), size=7)
+
+    if radials:
+        spacing_angle = 360.0 / n
+        s.text(margin / 2, margin + 6,
+               t["radial_label"].format(count=n, length=_fmt_length(radials[0].length_m, units), angle=spacing_angle))
+
+    s.text(base_x - 90, base_y - 18, design.balun["type"], size=7, bold=True)
 
     s.text(margin / 2, base_y + 12, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -124,6 +141,7 @@ def _scene_horizontal_center_fed(design: AntennaDesign, units: str, lang: str, m
     for x0, x1 in [(left_x, center_x), (center_x, right_x)]:
         s.dim_line(x0, dim_y, x1, dim_y)
     s.text(center_x + 5, dim_y + 10, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
+    s.text(center_x + 5, y - 22, design.balun["type"], size=7, bold=True)
 
     s.text(margin / 2, height - margin / 2, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -151,6 +169,7 @@ def _scene_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, marg
 
     s.line(feed_x, feed_y, end_x, feed_y, width=2)
     s.dot(feed_x, feed_y)
+    s.text(feed_x + 10, feed_y + 8, design.balun["type"], size=7, bold=True)
 
     dim_y = feed_y - 12
     s.dim_line(feed_x, dim_y, end_x, dim_y)
@@ -158,7 +177,7 @@ def _scene_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, marg
 
     cp_end_y = feed_y + counterpoise_u
     s.line(feed_x, feed_y, feed_x, cp_end_y, width=1, dashed=True)
-    s.text(feed_x + 5, cp_end_y, t["counterpoise_label"].format(length=_fmt_length(counterpoise.length_m, units)))
+    s.text(feed_x + 5, cp_end_y, t["counterpoise_label"].format(count=1, length=_fmt_length(counterpoise.length_m, units)))
 
     s.text(margin / 2, height - margin / 2, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -185,6 +204,7 @@ def _scene_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin:
     feed_x = (x0 + x1) / 2
     feed_y = y1
     s.dot(feed_x, feed_y)
+    s.text(feed_x + 10, feed_y - 14, design.balun["type"], size=7, bold=True)
 
     s.text(x0, y0 - 5, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=4))
     s.text(margin / 2, size - margin / 4, t["feedpoint_label"].format(
@@ -216,6 +236,7 @@ def _scene_vertical_loop(design: AntennaDesign, units: str, lang: str, margin: f
 
     feed_x = (left_x + right_x) / 2
     s.dot(feed_x, bottom_y)
+    s.text(feed_x + 10, bottom_y - 14, design.balun["type"], size=7, bold=True)
 
     s.text(left_x, bottom_y + 10, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=3))
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
@@ -247,6 +268,7 @@ def _scene_inverted_v(design: AntennaDesign, units: str, lang: str, margin: floa
     s.line(apex_x, apex_y, left_x, left_y, width=2)
     s.line(apex_x, apex_y, right_x, right_y, width=2)
     s.dot(apex_x, apex_y)
+    s.text(apex_x + 8, apex_y + 4, design.balun["type"], size=7, bold=True)
 
     s.text(apex_x + 5, apex_y + dy / 2, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
@@ -275,6 +297,7 @@ def _scene_horizontal_off_center_fed(design: AntennaDesign, units: str, lang: st
 
     s.line(left_x, y, right_x, y, width=2)
     s.dot(feed_x, y)
+    s.text(feed_x + 6, y - 22, design.balun["type"], size=7, bold=True)
 
     dim_y = y + 15
     s.text((left_x + feed_x) / 2 - 10, dim_y, t["element_label"].format(length=_fmt_length(short_leg.length_m, units)))
@@ -314,6 +337,7 @@ def _scene_j_pole(design: AntennaDesign, units: str, lang: str, margin: float) -
     tap_fraction = design.extra.get("feed_tap_fraction", 0.2)
     tap_y = base_y - stub_u * tap_fraction
     s.dot(stub_x, tap_y)
+    s.text(stub_x + 6, tap_y, design.balun["type"], size=7, bold=True)
 
     s.text(radiator_x - 22, (base_y + radiator_top_y) / 2, t["element_label"].format(length=_fmt_length(radiator.length_m, units)))
     s.text(stub_x + 5, (base_y + stub_top_y) / 2, t["element_label"].format(length=_fmt_length(stub.length_m, units)))
@@ -361,6 +385,7 @@ def _scene_yagi(design: AntennaDesign, units: str, lang: str, margin: float) -> 
         s.text(x + 3, boom_y - half - 3, t[label_key].format(length=_fmt_length(element.length_m, units)), size=7)
 
     s.dot(driven_x, boom_y)
+    s.text(driven_x + 6, boom_y - max_element_u / 2 - 14, design.balun["type"], size=7, bold=True)
     s.text(reflector_x, boom_y + max_element_u / 2 + 12, t["boom_label"].format(length=_fmt_length(boom_m, units)))
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -403,6 +428,7 @@ def _scene_quad(design: AntennaDesign, units: str, lang: str, margin: float) -> 
 
     feed_x = driven_x0 + driven_side_u / 2
     s.dot(feed_x, base_y)
+    s.text(feed_x + 6, base_y - 16, design.balun["type"], size=7, bold=True)
 
     s.text(driven_x0, base_y - driven_side_u - 5, t["loop_side_label"].format(length=_fmt_length(driven_side_m, units), count=4), size=7)
     s.text(reflector_x0, base_y - reflector_side_u - 5, t["reflector_label"].format(length=_fmt_length(reflector.length_m, units)), size=7)
@@ -445,6 +471,7 @@ def _scene_moxon(design: AntennaDesign, units: str, lang: str, margin: float) ->
 
     feed_x = (left_x + right_x) / 2
     s.dot(feed_x, driven_y)
+    s.text(feed_x + 6, driven_y - 14, design.balun["type"], size=7, bold=True)
 
     s.text(left_x, driven_y + 10, f"A: {_fmt_length(a_m, units)}", size=7)
     s.text(left_x, (driven_tail_y + reflector_tail_y) / 2,
@@ -478,6 +505,7 @@ def _scene_discone(design: AntennaDesign, units: str, lang: str, margin: float) 
 
     s.line(center_x - disc_u / 2, disc_y, center_x + disc_u / 2, disc_y, width=2)
     s.dot(center_x, apex_y)
+    s.text(center_x + 8, apex_y - 2, design.balun["type"], size=7, bold=True)
     s.line(center_x, apex_y, center_x - rim_half, rim_y, width=2)
     s.line(center_x, apex_y, center_x + rim_half, rim_y, width=2)
     s.line(center_x - rim_half, rim_y, center_x + rim_half, rim_y, width=1)

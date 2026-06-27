@@ -194,8 +194,9 @@ BALUN_WHY_GROUND_LOOP = {
 DRAWING = {
     "en": {
         "element_label": "Element: {length}",
-        "radial_label": "Radial x{count}: {length} each",
-        "counterpoise_label": "Counterpoise: {length}",
+        "radial_label": "Radial x{count}: {length} each, {angle:.0f} deg apart",
+        "radial_each_label": "R{index}: {length}",
+        "counterpoise_label": "Counterpoise x{count}: {length}",
         "loop_side_label": "Side: {length} (x{count})",
         "spacing_label": "Spacing: {length}",
         "boom_label": "Boom: {length}",
@@ -208,8 +209,9 @@ DRAWING = {
     },
     "nl": {
         "element_label": "Element: {length}",
-        "radial_label": "Radiaal x{count}: {length} elk",
-        "counterpoise_label": "Counterpoise: {length}",
+        "radial_label": "Radiaal x{count}: {length} elk, {angle:.0f} graden uit elkaar",
+        "radial_each_label": "R{index}: {length}",
+        "counterpoise_label": "Counterpoise x{count}: {length}",
         "loop_side_label": "Zijde: {length} (x{count})",
         "spacing_label": "Afstand: {length}",
         "boom_label": "Boom: {length}",
