@@ -168,72 +168,72 @@ class AntennaDesignerApp(tk.Tk):
 
         # Controls panel (amber-bordered, like HAMIOS panels).
         controls_border, controls = self._make_panel(self)
-        controls_border.pack(fill="x", padx=12, pady=6)
+        controls_border.pack(fill="x", padx=14, pady=8)
 
         self.type_label = ttk.Label(controls, text=self._t("antenna_type"), style="Panel.TLabel")
-        self.type_label.grid(row=0, column=0, padx=8, pady=8, sticky="w")
+        self.type_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.type_combo_var = tk.StringVar(value=antenna_type_label(self.antenna_type.get(), self.lang.get()))
         self.type_combo = ttk.Combobox(
             controls, textvariable=self.type_combo_var, values=self._antenna_type_values(),
             state="readonly", width=26,
         )
-        self.type_combo.grid(row=0, column=1, padx=8, pady=8, sticky="w")
+        self.type_combo.grid(row=0, column=1, padx=10, pady=10, sticky="w")
         self.type_combo.bind("<<ComboboxSelected>>", self._on_type_change)
 
         self.band_label = ttk.Label(controls, text=self._t("band"), style="Panel.TLabel")
-        self.band_label.grid(row=0, column=2, padx=8, pady=8, sticky="w")
+        self.band_label.grid(row=0, column=2, padx=10, pady=10, sticky="w")
         self.band_combo_var = tk.StringVar(value=_band_display(self.band.get()))
         self.band_combo = ttk.Combobox(
             controls, textvariable=self.band_combo_var, values=list(_BAND_DISPLAY_TO_KEY), state="readonly", width=20,
         )
-        self.band_combo.grid(row=0, column=3, padx=8, pady=8, sticky="w")
+        self.band_combo.grid(row=0, column=3, padx=10, pady=10, sticky="w")
         self.band_combo.bind("<<ComboboxSelected>>", self._on_band_change)
 
         self.units_label = ttk.Label(controls, text=self._t("units"), style="Panel.TLabel")
-        self.units_label.grid(row=1, column=0, padx=8, pady=(0, 8), sticky="w")
+        self.units_label.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
         units_frame = ttk.Frame(controls, style="Panel.TFrame")
-        units_frame.grid(row=1, column=1, padx=8, pady=(0, 8), sticky="w")
+        units_frame.grid(row=1, column=1, padx=10, pady=(0, 10), sticky="w")
         for i, val in enumerate(["metric", "imperial"]):
             rb = ttk.Radiobutton(units_frame, text=val, value=val, variable=self.units, command=self._on_units_change)
             rb.grid(row=0, column=i, padx=(0, 6))
 
         self.lang_label = ttk.Label(controls, text=self._t("language"), style="Panel.TLabel")
-        self.lang_label.grid(row=1, column=2, padx=8, pady=(0, 8), sticky="w")
+        self.lang_label.grid(row=1, column=2, padx=10, pady=(0, 10), sticky="w")
         lang_frame = ttk.Frame(controls, style="Panel.TFrame")
-        lang_frame.grid(row=1, column=3, padx=8, pady=(0, 8), sticky="w")
+        lang_frame.grid(row=1, column=3, padx=10, pady=(0, 10), sticky="w")
         for i, val in enumerate(["en", "nl"]):
             rb = ttk.Radiobutton(lang_frame, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
             rb.grid(row=0, column=i, padx=(0, 6))
 
         self.cable_label = ttk.Label(controls, text=self._t("feed_cable"), style="Panel.TLabel")
-        self.cable_label.grid(row=2, column=0, padx=8, pady=(0, 8), sticky="w")
+        self.cable_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
         cable_combo = ttk.Combobox(controls, textvariable=self.feed_cable, values=list(CABLES), state="readonly", width=20)
-        cable_combo.grid(row=2, column=1, padx=8, pady=(0, 8), sticky="w")
+        cable_combo.grid(row=2, column=1, padx=10, pady=(0, 10), sticky="w")
         cable_combo.bind("<<ComboboxSelected>>", lambda e: self._update_cable_label())
         self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
-        self.cable_vf_label.grid(row=2, column=2, columnspan=2, padx=8, pady=(0, 8), sticky="w")
+        self.cable_vf_label.grid(row=2, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Results panel.
         results_border, results_frame = self._make_panel(self)
-        results_border.pack(fill="x", padx=12, pady=6)
+        results_border.pack(fill="x", padx=14, pady=8)
         self.results_title = ttk.Label(results_frame, text=self._t("results"), style="PanelTitle.TLabel")
-        self.results_title.pack(anchor="w", padx=8, pady=(8, 0))
+        self.results_title.pack(anchor="w", padx=12, pady=(12, 0))
         self.results_text = tk.Text(
             results_frame, height=6, bg=PANEL_BG, fg=AMBER, insertbackground=AMBER,
-            font=FONT_MONO, relief="flat", borderwidth=0,
+            font=FONT_MONO, relief="flat", borderwidth=0, padx=10, pady=10,
         )
-        self.results_text.pack(fill="x", padx=8, pady=8)
+        self.results_text.pack(fill="x", padx=12, pady=12)
 
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
-        advice_border.pack(fill="both", expand=True, padx=12, pady=6)
+        advice_border.pack(fill="both", expand=True, padx=14, pady=8)
         self.advice_title = ttk.Label(advice_frame, text=self._t("advice"), style="PanelTitle.TLabel")
-        self.advice_title.pack(anchor="w", padx=8, pady=(8, 0))
+        self.advice_title.pack(anchor="w", padx=12, pady=(12, 0))
         self.advice_text = tk.Text(
             advice_frame, bg=PANEL_BG, fg=FG, insertbackground=AMBER,
-            font=FONT_COURIER, relief="flat", borderwidth=0, wrap="word",
+            font=FONT_COURIER, relief="flat", borderwidth=0, wrap="word", padx=12, pady=12,
         )
-        self.advice_text.pack(fill="both", expand=True, padx=8, pady=8)
+        self.advice_text.pack(fill="both", expand=True, padx=12, pady=12)
 
         # Footer / export buttons.
         footer = tk.Frame(self, bg=BG)
