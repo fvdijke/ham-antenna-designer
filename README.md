@@ -49,7 +49,9 @@ formulas that are actually sourced.
 ## Bands
 
 All HAM bands 160m-70cm, plus broadcast/SWL bands LW, MW, KW (general
-shortwave), VHF, and UHF -- each band dropdown shows its frequency range.
+shortwave), VHF, and UHF, plus the license-free/utility bands CB (11m
+Citizens Band), Air (VHF aviation voice), Marine (VHF maritime mobile),
+and PMR446 -- each band dropdown shows its frequency range.
 
 ## Features
 
