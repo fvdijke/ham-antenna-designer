@@ -8,7 +8,7 @@ ROLE_LABELS = {
     "radiator": {"en": "Radiator", "nl": "Stralend element"},
     "radial": {"en": "Radials", "nl": "Radialen"},
     "counterpoise": {"en": "Counterpoise", "nl": "Counterpoise"},
-    "matching_stub": {"en": "Matching stub", "nl": "Aanpasstub"},
+    "matching_stub": {"en": "Matching stub", "nl": "Matching stub"},
     "leg_short": {"en": "Short leg", "nl": "Kort been"},
     "leg_long": {"en": "Long leg", "nl": "Lang been"},
     "reflector": {"en": "Reflector", "nl": "Reflector"},
@@ -51,7 +51,7 @@ BALUN_WHERE = {
 
 BALUN_WHY = {
     "en": "suppresses common-mode current on the coax shield; a quarter-wave vertical with ground-mounted radials is fed directly, so no impedance-transforming unun is needed",
-    "nl": "onderdrukt common-mode stroom op het coax-scherm; een kwartgolf verticaal met grondradialen wordt direct gevoed, dus is er geen impedantie-transformerende unun nodig",
+    "nl": "onderdrukt common-mode stroom op het coax-scherm; een quarter-wave verticaal met grondradialen wordt direct gevoed, dus is er geen impedantie-transformerende unun nodig",
 }
 
 BALUN_WHERE_DIPOLE = {
@@ -101,7 +101,7 @@ BALUN_WHERE_FIVE_EIGHTHS = {
 
 BALUN_WHY_FIVE_EIGHTHS = {
     "en": "the 5/8-wave element is not naturally resonant; the coil cancels its reactance so the feedpoint presents a low, mostly resistive impedance to the coax",
-    "nl": "het 5/8-golf element is niet vanzelf resonant; de spoel heft de reactantie op zodat het voedingspunt een lage, vrijwel resistieve impedantie aan de coax biedt",
+    "nl": "het 5/8-wave element is niet vanzelf resonant; de spoel heft de reactantie op zodat het voedingspunt een lage, vrijwel resistieve impedantie aan de coax biedt",
 }
 
 BALUN_WHERE_EDZ = {
@@ -191,7 +191,7 @@ BUILD_NOTES_DIPOLE = {
         "step5": "5. End insulators: use proper egg/dogbone insulators at each leg end, not just knots in the wire,\n   to avoid the wire stretching or breaking under wind load.",
     },
     "nl": {
-        "title": "Bouwnotities -- {band} halve-golf dipool",
+        "title": "Bouwnotities -- {band} half-wave dipool",
         "step1": "1. Knip twee benen van elk {length} lang. Verbind beide met de middenisolator/het voedingspunt,\n   elk aan een kant van de balun.",
         "step2": "2. Monteer horizontaal (of als inverted-V / sloper bij weinig ruimte) -- de hoogte boven de grond\n   is belangrijker voor het stralingspatroon dan exacte rechtheid.",
         "step3": "3. Voedingspunt: verbind de coax via de balun met de middenisolator. Verwacht ~{ohms} ohm\n   voedingspuntimpedantie in de vrije ruimte -- hoogte en nabije objecten wijken hier iets van af.",
@@ -210,7 +210,7 @@ BUILD_NOTES_EFHW = {
         "step5": "5. Routing: keep the counterpoise away from the radiator run (don't let them run parallel close together) --\n   and route the radiator away from metal structures, which detune it.",
     },
     "nl": {
-        "title": "Bouwnotities -- {band} end-fed halve golf (EFHW)",
+        "title": "Bouwnotities -- {band} end-fed half-wave (EFHW)",
         "step1": "1. Knip de stralende draad af op {length}. Dit is het volledige stralende element, gevoed aan een einde.",
         "step2": "2. Knip een counterpoise-draad af op {length_cp} en verbind deze met de aardlip van de unun --\n   dit is geen resonant radialensysteem, slechts een retourpad voor de unun.",
         "step3": "3. Voedingspunt: verbind het hoge-impedantie-einde van de straler en de counterpoise met de unun.\n   Verwacht ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert naar ~50 ohm.",
@@ -229,7 +229,7 @@ BUILD_NOTES_LOOP = {
         "step5": "5. This antenna is quieter (lower noise pickup) than a dipole at the same height, and works\n   reasonably on multiple bands with a tuner -- a good all-rounder if you have the space for the perimeter.",
     },
     "nl": {
-        "title": "Bouwnotities -- {band} volledige-golf horizontale loop",
+        "title": "Bouwnotities -- {band} full-wave horizontale loop",
         "step1": "1. Knip EEN doorlopende draad af op de totale lengte {length}. Markeer vouwpunten bij elk kwart\n   ({side_length} uit elkaar) -- dit worden de vier hoeken van de loop.",
         "step2": "2. Hang de draad op als vierkant (of cirkel/driehoek -- de vorm maakt weinig uit, alleen de totale lengte telt)\n   tussen 4 steunpunten op gelijke hoogte. Houd licht onder spanning; doorzakken verschuift de resonantie.",
         "step3": "3. Voedingspunt: onderbreek de draad op het midden van een zijde en verbind daar de coax\n   (via de balun). Verwacht ~{ohms} ohm voedingspuntimpedantie.",
@@ -305,9 +305,9 @@ BUILD_NOTES_FIVE_EIGHTHS = {
         "step5": "5. This is the most finicky antenna in this list to get right -- budget time for SWR\n   sweeping and coil adjustment, it won't be a cut-once-done antenna like the others.",
     },
     "nl": {
-        "title": "Bouwnotities -- {band} 5/8-golf gain-verticaal",
-        "step1": "1. Knip het element op {length} -- merkbaar langer dan een kwartgolf verticaal\n   voor dezelfde band, daar komt de extra winst vandaan.",
-        "step2": "2. Leg {count} radialen aan, elk {length_radial} lang, net als het grondvlak van een kwartgolf verticaal.",
+        "title": "Bouwnotities -- {band} 5/8-wave gain-verticaal",
+        "step1": "1. Knip het element op {length} -- merkbaar langer dan een quarter-wave verticaal\n   voor dezelfde band, daar komt de extra winst vandaan.",
+        "step2": "2. Leg {count} radialen aan, elk {length_radial} lang, net als het grondvlak van een quarter-wave verticaal.",
         "step3": "3. Voedingspunt: het element alleen geeft GEEN schone 50 ohm match -- het is reactief.\n   Verwacht ~{ohms} ohm pas NA correcte dimensionering en installatie van de spoel.",
         "step4": "4. Aanpassing: {balun_type} -- {balun_why}. De exacte inductantie van deze spoel hangt af\n   van je elementdiameter en materiaal; gebruik een antenne-analyzer om wikkelingen te trimmen\n   voor minimale SWR in plaats van te vertrouwen op een vast aantal wikkelingen.",
         "step5": "5. Dit is de lastigste antenne in deze lijst om goed te krijgen -- reserveer tijd voor\n   SWR-metingen en spoelafstelling, het is geen eenmalig-knippen-klaar antenne zoals de rest.",
@@ -325,7 +325,7 @@ BUILD_NOTES_EDZ = {
     },
     "nl": {
         "title": "Bouwnotities -- {band} extended double Zepp (EDZ)",
-        "step1": "1. Knip twee benen van elk {length} lang -- merkbaar langer dan de benen van een halve-golf\n   dipool voor dezelfde band; deze extra lengte levert de winst.",
+        "step1": "1. Knip twee benen van elk {length} lang -- merkbaar langer dan de benen van een half-wave\n   dipool voor dezelfde band; deze extra lengte levert de winst.",
         "step2": "2. Monteer horizontaal zoals een dipool, zo hoog en recht als je steunpunten toelaten --\n   deze antenne beloont hoogte meer dan de meeste andere.",
         "step3": "3. Voedingspunt: verbind open-wire/ladderlijn in het midden, lopend naar een gebalanceerde\n   tuner (niet direct coax). Verwacht ruwweg ~{ohms} ohm, maar zie dit als een ruw getal --\n   het verschuift sterk met hoogte en omgeving.",
         "step4": "4. Aanpassing: {balun_type} -- {balun_why}.",
@@ -447,13 +447,13 @@ BUILD_NOTES = {
         ),
     },
     "nl": {
-        "title": "Bouwnotities -- {band} grondgemonteerde kwartgolf verticaal",
+        "title": "Bouwnotities -- {band} grondgemonteerde quarter-wave verticaal",
         "step1": "1. Mastelement: zaag/knip een stuk draad of buis af op {length}.\n   Monteer verticaal, geisoleerd van de grond (een PVC mast of geisoleerde voet werkt goed).",
         "step2": (
             "2. Radialen: leg {count} radialen aan, elk {length} lang,\n"
             "   gelijk verdeeld rond de voet (dit ontwerp gaat uit van gelijke hoekverdeling).\n"
             "   Ze kunnen op de grond liggen of een paar cm diep begraven worden -- verhoogde radialen\n"
-            "   werken ook, maar dan zijn 2-4 verhoogde radialen op kwartgolflengte gangbaarder\n"
+            "   werken ook, maar dan zijn 2-4 verhoogde radialen op quarter-wave lengte gangbaarder\n"
             "   dan veel radialen op de grond."
         ),
         "step3": (
