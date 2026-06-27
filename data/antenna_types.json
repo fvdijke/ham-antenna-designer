@@ -76,5 +76,23 @@
     "label_nl": "Moxon-rechthoek",
     "geometry": "moxon",
     "feed_location": "driven_element"
+  },
+  "longwire_receive": {
+    "label_en": "Long-wire receive (SWL, LW/MW/KW)",
+    "label_nl": "Longwire receive (SWL, LW/MW/KW)",
+    "geometry": "horizontal_end_fed",
+    "feed_location": "end"
+  },
+  "discone_receive": {
+    "label_en": "Discone receive (VHF/UHF wideband)",
+    "label_nl": "Discone receive (VHF/UHF breedband)",
+    "geometry": "discone",
+    "feed_location": "apex"
+  },
+  "ground_loop_receive": {
+    "label_en": "Loop-on-ground receive (LoG, LW/MW DX)",
+    "label_nl": "Loop-on-ground receive (LoG, LW/MW DX)",
+    "geometry": "horizontal_loop",
+    "feed_location": "side"
   }
 }

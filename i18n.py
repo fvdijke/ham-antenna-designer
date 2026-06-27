@@ -15,6 +15,7 @@ ROLE_LABELS = {
     "director": {"en": "Director", "nl": "Director"},
     "driven_loop": {"en": "Driven loop", "nl": "Gevoede loop"},
     "reflector_loop": {"en": "Reflector loop", "nl": "Reflector-loop"},
+    "disc": {"en": "Disc", "nl": "Disc"},
 }
 
 SUMMARY_LABELS = {
@@ -42,6 +43,12 @@ BALUN_TYPE_LABELS = {
     "tap_point_match": {"en": "Tap-point match (no balun)", "nl": "Aftakpunt-aanpassing (geen balun)"},
     "base_loading_coil": {"en": "Base loading coil", "nl": "Spoel aan de voet"},
     "balanced_tuner": {"en": "Balanced tuner (open-wire feed)", "nl": "Gebalanceerde tuner (open-wire voeding)"},
+    "unun_9_1": {"en": "9:1 unun", "nl": "9:1 unun"},
+    "direct_coax_feed": {"en": "Direct 50-ohm coax feed (no balun)", "nl": "Direct 50-ohm coax-voeding (geen balun)"},
+    "stepup_transformer_5_2": {
+        "en": "Step-up transformer (5:2 turns, ~6:1 impedance)",
+        "nl": "Step-up transformer (5:2 wikkelingen, ~6:1 impedantie)",
+    },
 }
 
 BALUN_WHERE = {
@@ -154,6 +161,36 @@ BALUN_WHY_MOXON = {
     "nl": "zet de ongebalanceerde coaxvoeding om naar het gebalanceerde gevoede element; de geometrie van de Moxon geeft al een voedingspuntimpedantie dicht bij 50 ohm",
 }
 
+BALUN_WHERE_LONGWIRE = {
+    "en": "at the feedpoint, where the high-impedance end of the wire and the counterpoise connect to the unun",
+    "nl": "bij het voedingspunt, waar het hoge-impedantie-einde van de draad en de counterpoise op de unun aansluiten",
+}
+
+BALUN_WHY_LONGWIRE = {
+    "en": "transforms the long wire's high end-fed impedance (commonly 500-1000 ohms) down toward 50 ohms for the receiver -- a measurable, often 12+ dB, improvement over a bare wire into a receiver input",
+    "nl": "transformeert de hoge end-fed impedantie van de longwire (doorgaans 500-1000 ohm) omlaag richting 50 ohm voor de ontvanger -- een merkbare, vaak 12+ dB, verbetering tegenover een blote draad direct op de ontvangeringang",
+}
+
+BALUN_WHERE_DISCONE = {
+    "en": "at the apex, where the coax center conductor connects to the disc and the shield connects to the cone",
+    "nl": "bij de apex, waar de coax-kern verbinding maakt met de disc en het scherm met de cone",
+}
+
+BALUN_WHY_DISCONE = {
+    "en": "the disc/cone geometry itself presents a low, fairly constant impedance across a very wide bandwidth, so no balun or matching network is needed -- this is what makes the discone genuinely broadband",
+    "nl": "de disc/cone-geometrie geeft zelf al een lage, redelijk constante impedantie over een zeer breed bereik, dus is geen balun of aanpasnetwerk nodig -- dit maakt de discone echt breedband",
+}
+
+BALUN_WHERE_GROUND_LOOP = {
+    "en": "at the feedpoint gap, where the loop's two ends connect to the step-up transformer",
+    "nl": "bij de voedingsspleet, waar de twee uiteinden van de loop op de step-up transformer aansluiten",
+}
+
+BALUN_WHY_GROUND_LOOP = {
+    "en": "a loop lying on the ground has a very low impedance that varies a lot with frequency and ground conditions; the step-up transformer brings it into a usable range for the receiver's 50/75 ohm input",
+    "nl": "een loop die op de grond ligt heeft een zeer lage impedantie die sterk varieert met frequentie en bodemgesteldheid; de step-up transformer brengt dit naar een bruikbaar bereik voor de 50/75 ohm ingang van de ontvanger",
+}
+
 DRAWING = {
     "en": {
         "element_label": "Element: {length}",
@@ -164,6 +201,8 @@ DRAWING = {
         "boom_label": "Boom: {length}",
         "reflector_label": "Reflector: {length}",
         "director_label": "Director: {length}",
+        "disc_label": "Disc: {length}",
+        "cone_label": "Cone: {length}",
         "feedpoint_label": "Feedpoint: ~{ohms} ohms, {balun_type} ({balun_ratio})",
         "band_label": "{band} band -- design freq {freq} MHz",
     },
@@ -174,6 +213,8 @@ DRAWING = {
         "loop_side_label": "Zijde: {length} (x{count})",
         "spacing_label": "Afstand: {length}",
         "boom_label": "Boom: {length}",
+        "disc_label": "Disc: {length}",
+        "cone_label": "Cone: {length}",
         "reflector_label": "Reflector: {length}",
         "director_label": "Director: {length}",
         "feedpoint_label": "Voedingspunt: ~{ohms} ohm, {balun_type} ({balun_ratio})",
@@ -412,6 +453,69 @@ BUILD_NOTES_MOXON = {
         "step3": "3. Voedingspunt: verbind de coax via de balun bij de spleet in het midden van het gevoede\n   element (NIET de reflector). Verwacht ~{ohms} ohm -- de Moxon-vorm is specifiek ontworpen\n   om dicht bij 50 ohm uit te komen.",
         "step4": "4. Balun: gebruik {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
         "step5": "5. De compacte, lichte Moxon-rechthoek is populair voor portable/veldgebruik -- behoorlijke\n   winst en voor-achterverhouding in een veel kleinere footprint dan een 2-elements Yagi of quad.",
+    },
+}
+
+BUILD_NOTES_LONGWIRE = {
+    "en": {
+        "title": "Build notes -- {band} long-wire receive antenna (SWL)",
+        "warning": "NOTE: this is a receive-only, intentionally non-resonant design -- there is no single\n   \"correct\" length like a transmit antenna. {length} is a practical MINIMUM (a quarter-wave\n   floor at the band's low edge); longer is generally better for low-frequency sensitivity.\n   If {length} is impractical for your location (common on LW/MW), use what space allows --\n   a shorter wire still works, just with reduced low-end response.",
+        "step1": "1. Run a wire at least {length} long, as high and as clear of buildings/power lines as practical.\n   Straight is ideal but not required -- a bent or sloping run still works for receive.",
+        "step2": "2. Run a counterpoise/ground wire of about {length_cp} from the unun's ground lug, or use\n   a real ground rod/cold-water-pipe ground if available -- either gives the unun a return path.",
+        "step3": "3. Feedpoint: connect the wire's far (high-impedance) end and the counterpoise to the unun.\n   Expect roughly ~{ohms} ohms at this point before the unun transforms it down for the receiver.",
+        "step4": "4. Unun: use a {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. Keep the wire away from noisy sources (switching power supplies, LED drivers, routers) --\n   for a receive antenna, noise pickup matters as much as signal pickup.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} longwire receive-antenne (SWL)",
+        "warning": "LET OP: dit is een receive-only, expres niet-resonant ontwerp -- er is geen \"juiste\"\n   lengte zoals bij een transmit-antenne. {length} is een praktisch MINIMUM (een quarter-wave\n   bodemwaarde op de onderkant van de band); langer is over het algemeen beter voor lage-frequentie\n   gevoeligheid. Is {length} onpraktisch voor je locatie (gebruikelijk op LW/MW), gebruik dan wat\n   de ruimte toelaat -- een kortere draad werkt nog steeds, alleen met minder respons onderin.",
+        "step1": "1. Span een draad van minstens {length} lang, zo hoog en zo vrij van gebouwen/stroomkabels als praktisch.\n   Recht is ideaal maar niet vereist -- een gebogen of hellende loop werkt ook voor ontvangst.",
+        "step2": "2. Span een counterpoise/aarddraad van ongeveer {length_cp} vanaf de aardlip van de unun, of gebruik\n   een echte aardpin/koudwaterleiding-aarde als die beschikbaar is -- beide geven de unun een retourpad.",
+        "step3": "3. Voedingspunt: verbind het verre (hoge-impedantie) einde van de draad en de counterpoise met de unun.\n   Verwacht ruwweg ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert voor de ontvanger.",
+        "step4": "4. Unun: gebruik een {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Houd de draad weg van ruisbronnen (schakelende voedingen, LED-drivers, routers) -- bij een\n   receive-antenne telt ruisontvangst net zo zwaar als signaalontvangst.",
+    },
+}
+
+BUILD_NOTES_DISCONE = {
+    "en": {
+        "title": "Build notes -- {band} discone receive antenna",
+        "warning": "NOTE: published rule-of-thumb dimensions ({skirt_count} skirt wires at {cone_angle} degrees\n   below horizontal from the apex), not an NEC-optimized design -- a solid starting point for\n   a genuinely wideband VHF/UHF receive antenna.",
+        "step1": "1. Cut the cone (vertical) element to {length_cone} and the disc to {length_disc} diameter --\n   the cone sets the low-frequency cutoff, the disc's size is derived from it.",
+        "step2": "2. Build the disc as a small flat ring or {skirt_count} short spokes at the top, and the cone\n   skirt as {skirt_count} wires/rods running from the apex down and outward at about\n   {cone_angle} degrees below horizontal to the cone's rim.",
+        "step3": "3. Feedpoint: connect the coax center conductor to the disc and the shield to the cone apex,\n   right at the narrow gap between them. Expect ~{ohms} ohms across a very wide bandwidth.",
+        "step4": "4. Matching: {balun_type} -- {balun_why}.",
+        "step5": "5. Mount as high and as clear of nearby structures as practical -- discones are popular\n   scanner/SDR antennas precisely because one antenna covers VHF and UHF without retuning.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} discone receive-antenne",
+        "warning": "LET OP: gepubliceerde vuistregel-afmetingen ({skirt_count} skirt-draden op {cone_angle} graden\n   onder de horizon vanaf de apex), geen NEC-geoptimaliseerd ontwerp -- een solide startpunt voor\n   een echt breedband VHF/UHF receive-antenne.",
+        "step1": "1. Knip het cone-element (verticaal) op {length_cone} en de disc op {length_disc} diameter --\n   de cone bepaalt de onderste frequentiegrens, de afmeting van de disc volgt daaruit.",
+        "step2": "2. Bouw de disc als een kleine vlakke ring of {skirt_count} korte spaken aan de top, en de cone-skirt\n   als {skirt_count} draden/staven die vanaf de apex naar beneden en naar buiten lopen onder ongeveer\n   {cone_angle} graden ten opzichte van de horizon, tot aan de rand van de cone.",
+        "step3": "3. Voedingspunt: verbind de coax-kern met de disc en het scherm met de apex van de cone,\n   precies op de smalle tussenruimte daartussen. Verwacht ~{ohms} ohm over een zeer breed bereik.",
+        "step4": "4. Aanpassing: {balun_type} -- {balun_why}.",
+        "step5": "5. Monteer zo hoog en zo vrij van nabije constructies als praktisch -- discones zijn populaire\n   scanner/SDR-antennes precies omdat een antenne zowel VHF als UHF dekt zonder herafstemmen.",
+    },
+}
+
+BUILD_NOTES_GROUND_LOOP = {
+    "en": {
+        "title": "Build notes -- {band} loop-on-ground receive antenna (LoG)",
+        "warning": "NOTE: receive-only, untuned, and intentionally laid flat on the ground -- this is a\n   noise-canceling DX antenna, not a transmit design. Published field reports cite a 120 ft\n   loop performing well at MW and a 250 ft loop performing better but with a higher noise floor;\n   {length} is this calculator's quarter-wave-floor reference for your selected band.",
+        "step1": "1. Lay ONE continuous wire on the ground (not elevated) in a loop of total length {length}\n   ({side_length} per side if run as a square). Avoid running it directly over buried metal\n   (pipes, rebar) if you can -- it detunes/distorts the pattern.",
+        "step2": "2. Leave a small gap where the loop's two ends come close together but don't touch --\n   this is the feedpoint.",
+        "step3": "3. Feedpoint: connect both loop ends across the step-up transformer's low-impedance\n   (loop-side) winding. Expect roughly ~{ohms} ohms here, varying a lot with ground and frequency.",
+        "step4": "4. Transformer: use a {balun_type} -- {balun_why}. Wind it on a ferrite binocular/toroid\n   core (a common choice is Fair-Rite #73 mix) with the receiver-side winding going to coax.",
+        "step5": "5. This antenna trades some signal strength for a much better signal-to-noise ratio than\n   a vertical or longwire at the same location -- it shines specifically where local electrical\n   noise (not weak signal) is your limiting factor.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} loop-on-ground receive-antenne (LoG)",
+        "warning": "LET OP: receive-only, ongetuned, en expres plat op de grond gelegd -- dit is een\n   ruisonderdrukkende DX-antenne, geen transmit-ontwerp. Gepubliceerde veldrapporten noemen een\n   loop van 120 ft die goed presteert op MW en een loop van 250 ft die beter presteert maar met\n   een hogere ruisvloer; {length} is de quarter-wave-bodemwaarde van deze calculator voor je band.",
+        "step1": "1. Leg EEN doorlopende draad op de grond (niet verhoogd) in een loop van totale lengte {length}\n   ({side_length} per zijde als vierkant aangelegd). Vermijd waar mogelijk direct over begraven\n   metaal (leidingen, wapeningsstaal) -- dat ontstemt/vervormt het patroon.",
+        "step2": "2. Laat een kleine tussenruimte waar de twee uiteinden van de loop dicht bij elkaar komen\n   maar elkaar niet raken -- dit is het voedingspunt.",
+        "step3": "3. Voedingspunt: verbind beide loop-uiteinden met de laagohmige (loop-kant) wikkeling van\n   de step-up transformer. Verwacht hier ruwweg ~{ohms} ohm, sterk variërend met bodem en frequentie.",
+        "step4": "4. Transformer: gebruik een {balun_type} -- {balun_why}. Wikkel hem op een ferriet\n   binocular/toroide kern (Fair-Rite #73 mix is een gangbare keuze), met de ontvanger-kant naar de coax.",
+        "step5": "5. Deze antenne ruilt wat signaalsterkte in voor een veel betere signaal-ruisverhouding dan\n   een verticaal of longwire op dezelfde locatie -- hij blinkt specifiek uit waar lokale elektrische\n   ruis (niet zwak signaal) je beperkende factor is.",
     },
 }
 

@@ -516,6 +516,50 @@ def _draw_moxon(design: AntennaDesign, units: str, lang: str, margin_mm: float) 
     return dwg
 
 
+def _draw_discone(design: AntennaDesign, units: str, lang: str, margin_mm: float) -> svgwrite.Drawing:
+    """Discone: disc at top, cone skirt flaring down and outward from the
+    apex just below it -- drawn as a side-view silhouette (two slanted rim
+    lines + a flat rim), since the real structure is rotationally symmetric."""
+    t = DRAWING[lang]
+    cone = design.elements_with_role("radiator")[0]
+    disc = design.elements_with_role("disc")[0]
+    scale = _scale_for(cone.length_m)
+    cone_mm = cone.length_m * scale
+    disc_mm = disc.length_m * scale
+
+    apex_gap_mm = 10.0
+    width_mm = max(disc_mm, cone_mm * 1.3) + margin_mm * 2
+    height_mm = apex_gap_mm + cone_mm + margin_mm * 2
+
+    dwg = _new_drawing(width_mm, height_mm)
+    _add_arrow_marker(dwg)
+
+    center_x = width_mm / 2
+    disc_y = margin_mm
+    apex_y = disc_y + apex_gap_mm
+    rim_y = apex_y + cone_mm
+    rim_half_mm = cone_mm * math.tan(math.radians(design.extra.get("cone_angle_deg", 30)))
+
+    dwg.add(dwg.line(start=(center_x - disc_mm / 2, disc_y), end=(center_x + disc_mm / 2, disc_y),
+                      stroke="black", stroke_width=2))
+    dwg.add(dwg.circle(center=(center_x, apex_y), r=4, fill="black"))
+    dwg.add(dwg.line(start=(center_x, apex_y), end=(center_x - rim_half_mm, rim_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(center_x, apex_y), end=(center_x + rim_half_mm, rim_y), stroke="black", stroke_width=2))
+    dwg.add(dwg.line(start=(center_x - rim_half_mm, rim_y), end=(center_x + rim_half_mm, rim_y), stroke="black", stroke_width=1))
+
+    dwg.add(dwg.text(t["disc_label"].format(length=_fmt_length(disc.length_m, units)),
+                      insert=(center_x + disc_mm / 2 + 5, disc_y + 3), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["cone_label"].format(length=_fmt_length(cone.length_m, units)),
+                      insert=(center_x + rim_half_mm / 2 + 5, (apex_y + rim_y) / 2), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(
+        t["feedpoint_label"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}",
+                                     balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        insert=(margin_mm / 2, height_mm - margin_mm / 4), font_size="8", font_family="sans-serif"))
+    dwg.add(dwg.text(t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+                      insert=(margin_mm / 2, margin_mm / 2), font_size="9", font_family="sans-serif", font_weight="bold"))
+    return dwg
+
+
 _RENDERERS = {
     "vertical": _draw_vertical,
     "horizontal_center_fed": _draw_horizontal_center_fed,
@@ -528,6 +572,7 @@ _RENDERERS = {
     "yagi": _draw_yagi,
     "quad": _draw_quad,
     "moxon": _draw_moxon,
+    "discone": _draw_discone,
 }
 
 

@@ -11,11 +11,14 @@ from i18n import (
     BUILD_NOTES,
     BUILD_NOTES_DELTA_LOOP,
     BUILD_NOTES_DIPOLE,
+    BUILD_NOTES_DISCONE,
     BUILD_NOTES_EDZ,
     BUILD_NOTES_EFHW,
     BUILD_NOTES_FIVE_EIGHTHS,
+    BUILD_NOTES_GROUND_LOOP,
     BUILD_NOTES_INVERTED_V,
     BUILD_NOTES_JPOLE,
+    BUILD_NOTES_LONGWIRE,
     BUILD_NOTES_LOOP,
     BUILD_NOTES_MOXON,
     BUILD_NOTES_OCFD,
@@ -286,6 +289,61 @@ def _advice_moxon(design: AntennaDesign, units: str, lang: str) -> str:
     ])
 
 
+def _advice_longwire(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_LONGWIRE[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    counterpoise = design.elements_with_role("counterpoise")[0]
+    length_str = _length_str(radiator.length_ft, radiator.length_m, units)
+    length_cp_str = _length_str(counterpoise.length_ft, counterpoise.length_m, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"].format(length=length_str), "",
+        t["step1"].format(length=length_str), "",
+        t["step2"].format(length_cp=length_cp_str), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_discone(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_DISCONE[lang]
+    cone = design.elements_with_role("radiator")[0]
+    disc = design.elements_with_role("disc")[0]
+    extra = design.extra
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"].format(skirt_count=extra["skirt_count"], cone_angle=extra["cone_angle_deg"]), "",
+        t["step1"].format(
+            length_cone=_length_str(cone.length_ft, cone.length_m, units),
+            length_disc=_length_str(disc.length_ft, disc.length_m, units),
+        ), "",
+        t["step2"].format(skirt_count=extra["skirt_count"], cone_angle=extra["cone_angle_deg"]), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_ground_loop(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_GROUND_LOOP[lang]
+    wire = design.elements_with_role("radiator")[0]
+    length_str = _length_str(wire.length_ft, wire.length_m, units)
+    side_str = _length_str(wire.length_ft / 4, wire.length_m / 4, units)
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["warning"].format(length=length_str), "",
+        t["step1"].format(length=length_str, side_length=side_str), "",
+        t["step2"], "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
 _ADVICE_BY_TYPE = {
     "vertical_quarter_wave": _advice_vertical,
     "dipole_half_wave": _advice_dipole,
@@ -300,6 +358,9 @@ _ADVICE_BY_TYPE = {
     "yagi_3_element": _advice_yagi,
     "quad_2_element": _advice_quad,
     "moxon_2_element": _advice_moxon,
+    "longwire_receive": _advice_longwire,
+    "discone_receive": _advice_discone,
+    "ground_loop_receive": _advice_ground_loop,
 }
 
 

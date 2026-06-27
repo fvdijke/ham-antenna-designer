@@ -15,4 +15,7 @@ from . import (  # noqa: F401
     yagi,
     quad,
     moxon,
+    longwire_receive,
+    discone,
+    ground_loop,
 )
