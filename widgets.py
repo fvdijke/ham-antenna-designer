@@ -10,6 +10,38 @@ rounded corners possible, which ttk.Frame can't do.
 import tkinter as tk
 
 
+def _hex_to_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb_to_hex(rgb):
+    return "#%02x%02x%02x" % rgb
+
+
+def _blend(c1, c2, t):
+    """t=0 -> c1, t=1 -> c2"""
+    r1, g1, b1 = _hex_to_rgb(c1)
+    r2, g2, b2 = _hex_to_rgb(c2)
+    return _rgb_to_hex((
+        int(r1 + (r2 - r1) * t),
+        int(g1 + (g2 - g1) * t),
+        int(b1 + (b2 - b1) * t),
+    ))
+
+
+def glow_layers_for(core_color, bg_color):
+    """Glow halo colors for a given core color over a given background,
+    from outermost (faintest) to innermost (the core itself, drawn at the
+    line's own width). Shared by the in-app schematic viewer and the
+    header logo so both use the exact same glow look."""
+    return [
+        (_blend(bg_color, core_color, 0.25), 5.0),
+        (_blend(bg_color, core_color, 0.55), 2.5),
+        (core_color, 0.0),
+    ]
+
+
 def _rounded_rect_points(x1, y1, x2, y2, radius):
     return [
         x1 + radius, y1,
@@ -135,3 +167,40 @@ class RoundedButton(tk.Canvas):
 
     def _on_leave(self, event=None):
         self._render(hover=False)
+
+
+class LogoCanvas(tk.Canvas):
+    """Small line-drawing app icon -- a circle badge with a signal/lightning
+    stroke through it, amber with the same soft glow halo as the in-app
+    schematic viewer. Purely decorative, placed in the header before the
+    title."""
+
+    def __init__(self, parent, bg, core_color, size=36, **kwargs):
+        super().__init__(parent, width=size, height=size, bg=bg, highlightthickness=0, **kwargs)
+        self._size = size
+        self._glow_layers = glow_layers_for(core_color, bg)
+        self._draw()
+
+    def _glow_line(self, x1, y1, x2, y2, width):
+        for color, extra in self._glow_layers[:-1]:
+            self.create_line(x1, y1, x2, y2, fill=color, width=width + extra, capstyle=tk.ROUND)
+        self.create_line(x1, y1, x2, y2, fill=self._glow_layers[-1][0], width=width, capstyle=tk.ROUND)
+
+    def _glow_oval(self, cx, cy, r, width):
+        bbox = (cx - r, cy - r, cx + r, cy + r)
+        for color, extra in self._glow_layers[:-1]:
+            self.create_oval(*bbox, outline=color, width=width + extra)
+        self.create_oval(*bbox, outline=self._glow_layers[-1][0], width=width)
+
+    def _draw(self):
+        s = self._size
+        cx, cy, r = s * 0.5, s * 0.5, s * 0.40
+        self._glow_oval(cx, cy, r, 1.6)
+        pts = [
+            (cx + s * 0.06, cy - s * 0.26),
+            (cx - s * 0.10, cy + s * 0.02),
+            (cx + s * 0.02, cy + s * 0.02),
+            (cx - s * 0.06, cy + s * 0.26),
+        ]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            self._glow_line(x1, y1, x2, y2, 2.0)

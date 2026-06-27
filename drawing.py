@@ -73,6 +73,16 @@ def _svg_from_scene(scene: Scene) -> svgwrite.Drawing:
                           fill="white", stroke="black", stroke_width=0.75))
         dwg.add(dwg.text(text, insert=(box_x, box_y + 2.5), font_size="7", font_family="sans-serif", font_weight="bold"))
 
+    # Core/shield tags, boxed like the balun -- bordered in that wire's own
+    # stroke color (black for core/"element", gray for shield/"radial").
+    for x, y, text, kind in scene.tag_boxes:
+        stroke = _LINE_STROKE_BY_KIND.get("element" if kind == "core" else "radial", "black")
+        box_w = len(text) * 7.0 * 0.62 + 10
+        box_h = 7.0 * 1.8
+        dwg.add(dwg.rect(insert=(x - 4, y - box_h / 2), size=(box_w, box_h),
+                          fill="white", stroke=stroke, stroke_width=1.0))
+        dwg.add(dwg.text(text, insert=(x, y + 2.5), font_size="7", font_family="sans-serif", font_weight="bold"))
+
     return dwg
 
 

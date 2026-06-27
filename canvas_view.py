@@ -8,8 +8,10 @@ shown has its computed dimension labeled, same as the SVG.
 """
 
 import tkinter as tk
+from tkinter import ttk
 
 from scene import Scene, build_scene
+from widgets import glow_layers_for
 
 BG = "#1a1a1a"
 PANEL_BG = "#141414"
@@ -23,42 +25,12 @@ FG = "#e8e8e8"
 AMBER_RADIAL = "#9a6c00"
 REFERENCE_GRAY = "#555555"
 
-MAX_CANVAS = 380.0  # fit the largest scene dimension into this many pixels
-
-
-def _hex_to_rgb(h):
-    h = h.lstrip("#")
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-
-
-def _rgb_to_hex(rgb):
-    return "#%02x%02x%02x" % rgb
-
-
-def _blend(c1, c2, t):
-    """t=0 -> c1, t=1 -> c2"""
-    r1, g1, b1 = _hex_to_rgb(c1)
-    r2, g2, b2 = _hex_to_rgb(c2)
-    return _rgb_to_hex((
-        int(r1 + (r2 - r1) * t),
-        int(g1 + (g2 - g1) * t),
-        int(b1 + (b2 - b1) * t),
-    ))
-
-
-def _glow_layers_for(core_color):
-    """Glow halo colors for a given core color, from outermost (faintest)
-    to innermost (the core itself, drawn at the line's own width)."""
-    return [
-        (_blend(PANEL_BG, core_color, 0.25), 5.0),
-        (_blend(PANEL_BG, core_color, 0.55), 2.5),
-        (core_color, 0.0),
-    ]
+MAX_CANVAS = 760.0  # fit the largest scene dimension into this many pixels
 
 
 # Glow halo colors, from outermost (faintest) to innermost (brightest core).
-_GLOW_LAYERS = _glow_layers_for(AMBER)
-_GLOW_LAYERS_RADIAL = _glow_layers_for(AMBER_RADIAL)
+_GLOW_LAYERS = glow_layers_for(AMBER, PANEL_BG)
+_GLOW_LAYERS_RADIAL = glow_layers_for(AMBER_RADIAL, PANEL_BG)
 
 _LINE_COLORS_BY_KIND = {
     "element": _GLOW_LAYERS,
@@ -118,6 +90,23 @@ def _draw_balun_box(canvas, feed_x, feed_y, box_x, box_y, text):
     canvas.tag_raise(text_id, box)
 
 
+_TAG_BOX_COLORS = {"core": AMBER, "shield": AMBER_RADIAL}
+
+
+def _draw_tag_box(canvas, x, y, text, kind):
+    """Core/shield tag, boxed and filled with that wire's own color -- same
+    look as the balun box, so the tag visually matches the wire color it's
+    identifying instead of being plain floating text."""
+    color = _TAG_BOX_COLORS.get(kind, AMBER)
+    font = ("Helvetica", 10, "bold")
+    text_id = canvas.create_text(x, y, text=text, fill="#1a1a1a", font=font, anchor="w")
+    bbox = canvas.bbox(text_id)
+    pad = 4
+    box = canvas.create_rectangle(bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad,
+                                   fill=color, outline="#1a1a1a", width=1.2)
+    canvas.tag_raise(text_id, box)
+
+
 def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float = 0.0, oy: float = 0.0):
     """Draw every op in `scene` onto `canvas`, scaled by `scale` and offset
     by (ox, oy) -- lets the same scene fit canvases of different sizes."""
@@ -139,7 +128,7 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
         _draw_dim_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2))
 
     for x, y, text, size, bold in scene.texts:
-        font = ("Helvetica", max(int(size * scale * 1.3), 9), "bold" if bold else "normal")
+        font = ("Helvetica", max(int(size * scale * 1.45), 11), "bold" if bold else "normal")
         canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor="nw")
 
     for x, y, r in scene.feed_points:
@@ -148,6 +137,9 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
     for feed_x, feed_y, box_x, box_y, text in scene.balun_boxes:
         _draw_balun_box(canvas, tx(feed_x), ty(feed_y), tx(box_x), ty(box_y), text)
 
+    for x, y, text, kind in scene.tag_boxes:
+        _draw_tag_box(canvas, tx(x), ty(y), text, kind)
+
 
 def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title: str, not_to_scale_note: str):
     """Open a Toplevel with the schematic drawing for `design`."""
@@ -155,20 +147,41 @@ def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title:
 
     scale = MAX_CANVAS / max(scene.width, scene.height)
     canvas_w = scene.width * scale + 40
-    canvas_h = scene.height * scale + 70
+    canvas_h = scene.height * scale + 40
 
     win = tk.Toplevel(parent)
     win.title(window_title)
     win.configure(bg=BG)
 
     note = tk.Label(win, text=not_to_scale_note, bg=BG, fg=AMBER, font=("Helvetica", 9, "italic"))
-    note.pack(anchor="w", padx=12, pady=(10, 0))
+    note.pack(anchor="w", padx=12, pady=(10, 6))
 
-    canvas = tk.Canvas(win, width=canvas_w, height=canvas_h - 30, bg=PANEL_BG, highlightthickness=0)
-    canvas.pack(padx=12, pady=12)
+    # A bigger schematic can be taller than the screen -- wrap the canvas in
+    # a scrollable container instead of letting the window manager silently
+    # shrink the window (which used to clip the bottom of the drawing).
+    container = tk.Frame(win, bg=BG)
+    container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+    canvas = tk.Canvas(container, width=canvas_w, height=canvas_h, bg=PANEL_BG, highlightthickness=0,
+                        scrollregion=(0, 0, canvas_w, canvas_h))
+    vbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+    canvas.configure(yscrollcommand=vbar.set)
+    canvas.pack(side="left", fill="both", expand=True)
 
     render_scene(canvas, scene, scale=scale, ox=20, oy=20)
 
-    win.geometry(f"{int(canvas_w) + 24}x{int(canvas_h) + 24}")
+    # Decide up front whether the scrollbar is needed and pack it *before*
+    # measuring the window's required size -- packing it afterwards would
+    # leave it zero-width (canvas already claims the full window via
+    # fill="both"/expand=True), so it would never actually show up.
+    win.update_idletasks()
+    max_h = win.winfo_screenheight() - 80
+    note_overhead = note.winfo_reqheight() + 12 + 18 + 24  # note + its pady + container pady
+    if canvas_h + note_overhead > max_h:
+        vbar.pack(side="right", fill="y")
+
+    win.update_idletasks()
+    req_w, req_h = win.winfo_reqwidth(), win.winfo_reqheight()
+    win.geometry(f"{req_w}x{min(req_h, max_h)}")
     win.resizable(True, True)
     return win

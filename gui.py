@@ -12,7 +12,9 @@ measurements and a scaled drawing; cutting wire/tubing is done with a tape
 measure against those numbers, not a taped-together paper template.
 """
 
+import re
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 
 import calculators  # noqa: F401 -- registers all antenna calculator types
@@ -26,7 +28,7 @@ from format_text import format_summary
 from i18n import SHAPE_FAMILY_LABELS, WAVE_FRACTION_LABELS
 from registry import REGISTRY, design as design_antenna
 from settings import load_settings, save_settings
-from widgets import RoundedButton, RoundedPanel
+from widgets import LogoCanvas, RoundedButton, RoundedPanel
 from canvas_view import show_drawing
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
@@ -52,7 +54,7 @@ AMBER = "#ffb000"
 AMBER_DIM = "#8a6000"
 FONT_TITLE = ("Helvetica", 13, "bold")
 FONT_LABEL = ("Helvetica", 10)
-FONT_MONO = ("Menlo", 10)
+FONT_COMBO = ("Helvetica", 9)
 FONT_COURIER = ("Courier New", 11)
 
 
@@ -158,6 +160,7 @@ class AntennaDesignerApp(tk.Tk):
             fieldbackground=PANEL_BG, background=PANEL_BG, foreground=FG,
             arrowcolor=AMBER, selectbackground=PANEL_BG, selectforeground=AMBER,
             bordercolor=AMBER, lightcolor=PANEL_BG, darkcolor=PANEL_BG,
+            font=FONT_COMBO,
         )
         style.map(
             "TCombobox",
@@ -169,6 +172,7 @@ class AntennaDesignerApp(tk.Tk):
         self.option_add("*TCombobox*Listbox.foreground", FG)
         self.option_add("*TCombobox*Listbox.selectBackground", AMBER_DIM)
         self.option_add("*TCombobox*Listbox.selectForeground", "#000000")
+        self.option_add("*TCombobox*Listbox.font", FONT_COMBO)
         style.configure("TRadiobutton", background=PANEL_BG, foreground=FG, font=FONT_LABEL)
         style.map(
             "TRadiobutton",
@@ -209,6 +213,8 @@ class AntennaDesignerApp(tk.Tk):
         # top of the window instead of a separate footer.
         header = ttk.Frame(self)
         header.pack(fill="x", padx=12, pady=(12, 6))
+        self.logo = LogoCanvas(header, bg=BG, core_color=AMBER, size=32)
+        self.logo.pack(side="left", padx=(0, 8))
         self.title_label = ttk.Label(header, text=self._t("window_title"), style="Title.TLabel")
         self.title_label.pack(side="left")
 
@@ -306,8 +312,8 @@ class AntennaDesignerApp(tk.Tk):
         self.results_title = ttk.Label(results_frame, text=self._t("results"), style="PanelTitle.TLabel")
         self.results_title.pack(anchor="w", padx=12, pady=(12, 0))
         self.results_text = tk.Text(
-            results_frame, height=6, bg=PANEL_BG, fg=AMBER, insertbackground=AMBER,
-            font=FONT_MONO, relief="flat", borderwidth=0, padx=10, pady=10,
+            results_frame, height=6, bg=PANEL_BG, fg=FG, insertbackground=AMBER,
+            font=FONT_COURIER, relief="flat", borderwidth=0, padx=10, pady=10,
             highlightthickness=0,
         )
         self.results_text.pack(fill="x", padx=12, pady=12)
@@ -425,6 +431,28 @@ class AntennaDesignerApp(tk.Tk):
             self.custom_freq_hint.config(text=self._t("custom_freq_invalid"))
             return None
 
+    _NUMBERED_LINE = re.compile(r"^\d+\.\s+")
+
+    def _set_text_with_hanging_indent(self, text_widget, content):
+        """Insert `content` and make word-wrapped continuation lines indent
+        to line up under the text (not back to column 0) -- matches the
+        leading spaces of manually-broken lines, or the width of a numbered
+        marker ("1. ") for lines that wrap on their own."""
+        text_widget.delete("1.0", "end")
+        text_widget.insert("1.0", content)
+        fnt = tkfont.Font(font=text_widget["font"])
+        space_w = fnt.measure(" ")
+        for i, line in enumerate(content.split("\n"), start=1):
+            match = self._NUMBERED_LINE.match(line)
+            if match:
+                indent_chars = len(match.group(0))
+            else:
+                indent_chars = len(line) - len(line.lstrip(" "))
+            if indent_chars:
+                tag = f"hang{i}"
+                text_widget.tag_configure(tag, lmargin1=0, lmargin2=indent_chars * space_w)
+                text_widget.tag_add(tag, f"{i}.0", f"{i}.end")
+
     def _calculate(self):
         lang = self.lang.get()
         units = self.units.get()
@@ -434,11 +462,8 @@ class AntennaDesignerApp(tk.Tk):
 
         self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz)
 
-        self.results_text.delete("1.0", "end")
-        self.results_text.insert("1.0", format_summary(self.design, units=units, lang=lang))
-
-        self.advice_text.delete("1.0", "end")
-        self.advice_text.insert("1.0", build_advice(self.design, units=units, lang=lang))
+        self._set_text_with_hanging_indent(self.results_text, format_summary(self.design, units=units, lang=lang))
+        self._set_text_with_hanging_indent(self.advice_text, build_advice(self.design, units=units, lang=lang))
 
     def _export_svg(self):
         if not self.design:
