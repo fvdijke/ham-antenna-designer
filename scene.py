@@ -28,9 +28,15 @@ class Scene:
     height: float
     lines: List[Tuple[float, float, float, float, float, bool]] = field(default_factory=list)  # x1,y1,x2,y2,width,dashed
     polygons: List[Tuple[list, float]] = field(default_factory=list)  # points, width
-    dots: List[Tuple[float, float, float]] = field(default_factory=list)  # x,y,r (feedpoint markers)
     dim_lines: List[Tuple[float, float, float, float]] = field(default_factory=list)  # x1,y1,x2,y2
     texts: List[Tuple[float, float, str, int, bool]] = field(default_factory=list)  # x,y,text,size,bold
+    # Feedpoint: a dot plus a ring around it (donut shape), visually distinct
+    # from plain element/junction dots so it reads as "this is the feed".
+    feed_points: List[Tuple[float, float, float]] = field(default_factory=list)  # x,y,r
+    # Balun/unun/choke marker: a small component-box symbol connected to the
+    # feedpoint by a short leader line, with its label -- instead of bare
+    # floating text, so it reads as "this box is inserted in the feedline".
+    balun_boxes: List[Tuple[float, float, float, float, str]] = field(default_factory=list)  # feed_x,feed_y,box_x,box_y,text
 
     def line(self, x1, y1, x2, y2, width=2.0, dashed=False):
         self.lines.append((x1, y1, x2, y2, width, dashed))
@@ -38,14 +44,17 @@ class Scene:
     def polygon(self, points, width=2.0):
         self.polygons.append((points, width))
 
-    def dot(self, x, y, r=4.0):
-        self.dots.append((x, y, r))
-
     def dim_line(self, x1, y1, x2, y2):
         self.dim_lines.append((x1, y1, x2, y2))
 
     def text(self, x, y, text, size=8, bold=False):
         self.texts.append((x, y, text, size, bold))
+
+    def feed_point(self, x, y, r=5.0):
+        self.feed_points.append((x, y, r))
+
+    def balun_box(self, feed_x, feed_y, box_x, box_y, text):
+        self.balun_boxes.append((feed_x, feed_y, box_x, box_y, text))
 
 
 def _scale_for(natural_extent_m: float) -> float:
@@ -92,7 +101,7 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
 
     s.line(margin / 2, base_y, width - margin / 2, base_y, width=1, dashed=True)
     s.line(base_x, base_y, base_x, top_y, width=2)
-    s.dot(base_x, base_y)
+    s.feed_point(base_x, base_y)
 
     dim_x = base_x + 15
     s.dim_line(dim_x, base_y, dim_x, top_y)
@@ -110,7 +119,7 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
         s.text(margin / 2, margin + 6,
                t["radial_label"].format(count=n, length=_fmt_length(radials[0].length_m, units), angle=spacing_angle))
 
-    s.text(base_x - 90, base_y - 18, design.balun["type"], size=7, bold=True)
+    s.balun_box(base_x, base_y, base_x - 95, base_y - 22, design.balun["type"])
 
     s.text(margin / 2, base_y + 12, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -126,22 +135,26 @@ def _scene_horizontal_center_fed(design: AntennaDesign, units: str, lang: str, m
     leg_u = leg_a.length_m * scale
 
     width = leg_u * 2 + margin * 2
-    height = margin * 2 + 20
+    height = margin * 2 + 75
     s = Scene(width, height)
 
     center_x = width / 2
-    y = height / 2
+    y = margin + 20
     left_x = center_x - leg_u
     right_x = center_x + leg_u
 
     s.line(left_x, y, right_x, y, width=2)
-    s.dot(center_x, y)
+    s.feed_point(center_x, y)
+    s.balun_box(center_x, y, center_x + 70, y - 25, design.balun["type"])
 
-    dim_y = y + 15
+    dim_y = y + 18
     for x0, x1 in [(left_x, center_x), (center_x, right_x)]:
         s.dim_line(x0, dim_y, x1, dim_y)
-    s.text(center_x + 5, dim_y + 10, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
-    s.text(center_x + 5, y - 22, design.balun["type"], size=7, bold=True)
+    s.text(center_x + 5, dim_y + 6, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
+
+    total_y = dim_y + 28
+    s.dim_line(left_x, total_y, right_x, total_y)
+    s.text(center_x - 35, total_y + 6, t["total_label"].format(length=_fmt_length(leg_a.length_m + leg_b.length_m, units)), size=8, bold=True)
 
     s.text(margin / 2, height - margin / 2, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -168,8 +181,8 @@ def _scene_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, marg
     end_x = feed_x + radiator_u
 
     s.line(feed_x, feed_y, end_x, feed_y, width=2)
-    s.dot(feed_x, feed_y)
-    s.text(feed_x + 10, feed_y + 8, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, feed_y)
+    s.balun_box(feed_x, feed_y, feed_x + 50, feed_y + 28, design.balun["type"])
 
     dim_y = feed_y - 12
     s.dim_line(feed_x, dim_y, end_x, dim_y)
@@ -203,10 +216,11 @@ def _scene_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin:
 
     feed_x = (x0 + x1) / 2
     feed_y = y1
-    s.dot(feed_x, feed_y)
-    s.text(feed_x + 10, feed_y - 14, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, feed_y)
+    s.balun_box(feed_x, feed_y, feed_x + 55, feed_y - 20, design.balun["type"])
 
     s.text(x0, y0 - 5, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=4))
+    s.text(x0, y0 + 10, t["total_label"].format(length=_fmt_length(side_m * 4, units)), bold=True)
     s.text(margin / 2, size - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
     s.text(margin / 2, margin / 2, t["band_label"].format(band=design.band, freq=design.design_freq_mhz), size=9, bold=True)
@@ -235,10 +249,11 @@ def _scene_vertical_loop(design: AntennaDesign, units: str, lang: str, margin: f
     s.polygon([(left_x, bottom_y), (right_x, bottom_y), (apex_x, apex_y)], width=2)
 
     feed_x = (left_x + right_x) / 2
-    s.dot(feed_x, bottom_y)
-    s.text(feed_x + 10, bottom_y - 14, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, bottom_y)
+    s.balun_box(feed_x, bottom_y, feed_x + 55, bottom_y - 20, design.balun["type"])
 
     s.text(left_x, bottom_y + 10, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=3))
+    s.text(left_x, margin / 2, t["total_label"].format(length=_fmt_length(side_m * 3, units)), bold=True)
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
     s.text(margin / 2, margin / 2, t["band_label"].format(band=design.band, freq=design.design_freq_mhz), size=9, bold=True)
@@ -267,10 +282,11 @@ def _scene_inverted_v(design: AntennaDesign, units: str, lang: str, margin: floa
 
     s.line(apex_x, apex_y, left_x, left_y, width=2)
     s.line(apex_x, apex_y, right_x, right_y, width=2)
-    s.dot(apex_x, apex_y)
-    s.text(apex_x + 8, apex_y + 4, design.balun["type"], size=7, bold=True)
+    s.feed_point(apex_x, apex_y)
+    s.balun_box(apex_x, apex_y, apex_x + 65, apex_y + 16, design.balun["type"])
 
     s.text(apex_x + 5, apex_y + dy / 2, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
+    s.text(margin / 2, margin / 2 + 14, t["total_label"].format(length=_fmt_length(leg_a.length_m + leg_b.length_m, units)), bold=True)
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
     s.text(margin / 2, margin / 2, t["band_label"].format(band=design.band, freq=design.design_freq_mhz), size=9, bold=True)
@@ -287,21 +303,25 @@ def _scene_horizontal_off_center_fed(design: AntennaDesign, units: str, lang: st
     long_u = long_leg.length_m * scale
 
     width = short_u + long_u + margin * 2
-    height = margin * 2 + 20
+    height = margin * 2 + 75
     s = Scene(width, height)
 
     feed_x = margin + short_u
-    y = height / 2
+    y = margin + 20
     left_x = margin
     right_x = margin + short_u + long_u
 
     s.line(left_x, y, right_x, y, width=2)
-    s.dot(feed_x, y)
-    s.text(feed_x + 6, y - 22, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, y)
+    s.balun_box(feed_x, y, feed_x + 55, y - 25, design.balun["type"])
 
-    dim_y = y + 15
+    dim_y = y + 18
     s.text((left_x + feed_x) / 2 - 10, dim_y, t["element_label"].format(length=_fmt_length(short_leg.length_m, units)))
     s.text((feed_x + right_x) / 2 - 10, dim_y, t["element_label"].format(length=_fmt_length(long_leg.length_m, units)))
+
+    total_y = dim_y + 28
+    s.dim_line(left_x, total_y, right_x, total_y)
+    s.text((left_x + right_x) / 2 - 30, total_y + 6, t["total_label"].format(length=_fmt_length(short_leg.length_m + long_leg.length_m, units)), bold=True)
 
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -336,8 +356,8 @@ def _scene_j_pole(design: AntennaDesign, units: str, lang: str, margin: float) -
 
     tap_fraction = design.extra.get("feed_tap_fraction", 0.2)
     tap_y = base_y - stub_u * tap_fraction
-    s.dot(stub_x, tap_y)
-    s.text(stub_x + 6, tap_y, design.balun["type"], size=7, bold=True)
+    s.feed_point(stub_x, tap_y)
+    s.balun_box(stub_x, tap_y, stub_x + 45, tap_y - 18, design.balun["type"])
 
     s.text(radiator_x - 22, (base_y + radiator_top_y) / 2, t["element_label"].format(length=_fmt_length(radiator.length_m, units)))
     s.text(stub_x + 5, (base_y + stub_top_y) / 2, t["element_label"].format(length=_fmt_length(stub.length_m, units)))
@@ -384,8 +404,8 @@ def _scene_yagi(design: AntennaDesign, units: str, lang: str, margin: float) -> 
         s.line(x, boom_y - half, x, boom_y + half, width=2)
         s.text(x + 3, boom_y - half - 3, t[label_key].format(length=_fmt_length(element.length_m, units)), size=7)
 
-    s.dot(driven_x, boom_y)
-    s.text(driven_x + 6, boom_y - max_element_u / 2 - 14, design.balun["type"], size=7, bold=True)
+    s.feed_point(driven_x, boom_y)
+    s.balun_box(driven_x, boom_y, driven_x + 50, boom_y - max_element_u / 2 - 20, design.balun["type"])
     s.text(reflector_x, boom_y + max_element_u / 2 + 12, t["boom_label"].format(length=_fmt_length(boom_m, units)))
     s.text(margin / 2, height - margin / 4, t["feedpoint_label"].format(
         ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
@@ -427,8 +447,8 @@ def _scene_quad(design: AntennaDesign, units: str, lang: str, margin: float) -> 
     s.polygon(square(driven_x0, driven_side_u), width=2)
 
     feed_x = driven_x0 + driven_side_u / 2
-    s.dot(feed_x, base_y)
-    s.text(feed_x + 6, base_y - 16, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, base_y)
+    s.balun_box(feed_x, base_y, feed_x + 50, base_y - 24, design.balun["type"])
 
     s.text(driven_x0, base_y - driven_side_u - 5, t["loop_side_label"].format(length=_fmt_length(driven_side_m, units), count=4), size=7)
     s.text(reflector_x0, base_y - reflector_side_u - 5, t["reflector_label"].format(length=_fmt_length(reflector.length_m, units)), size=7)
@@ -470,8 +490,8 @@ def _scene_moxon(design: AntennaDesign, units: str, lang: str, margin: float) ->
     s.line(right_x, reflector_y, right_x, reflector_tail_y, width=2)
 
     feed_x = (left_x + right_x) / 2
-    s.dot(feed_x, driven_y)
-    s.text(feed_x + 6, driven_y - 14, design.balun["type"], size=7, bold=True)
+    s.feed_point(feed_x, driven_y)
+    s.balun_box(feed_x, driven_y, feed_x + 50, driven_y - 22, design.balun["type"])
 
     s.text(left_x, driven_y + 10, f"A: {_fmt_length(a_m, units)}", size=7)
     s.text(left_x, (driven_tail_y + reflector_tail_y) / 2,
@@ -504,8 +524,8 @@ def _scene_discone(design: AntennaDesign, units: str, lang: str, margin: float) 
     rim_half = cone_u * math.tan(math.radians(design.extra.get("cone_angle_deg", 30)))
 
     s.line(center_x - disc_u / 2, disc_y, center_x + disc_u / 2, disc_y, width=2)
-    s.dot(center_x, apex_y)
-    s.text(center_x + 8, apex_y - 2, design.balun["type"], size=7, bold=True)
+    s.feed_point(center_x, apex_y)
+    s.balun_box(center_x, apex_y, center_x + 60, apex_y + 14, design.balun["type"])
     s.line(center_x, apex_y, center_x - rim_half, rim_y, width=2)
     s.line(center_x, apex_y, center_x + rim_half, rim_y, width=2)
     s.line(center_x - rim_half, rim_y, center_x + rim_half, rim_y, width=1)

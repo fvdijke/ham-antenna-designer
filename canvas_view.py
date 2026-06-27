@@ -73,6 +73,28 @@ def _draw_dim_line(canvas, x1, y1, x2, y2):
     canvas.create_line(x1, y1, x2, y2, fill=FG, width=1, arrow=tk.BOTH, arrowshape=(6, 7, 3))
 
 
+def _draw_feed_point(canvas, x, y, r):
+    """Feedpoint: the glow dot plus a crisp white ring around it, so it
+    reads as 'the feed' rather than just another junction dot."""
+    _draw_glow_dot(canvas, x, y, r)
+    ring_r = r + 4
+    canvas.create_oval(x - ring_r, y - ring_r, x + ring_r, y + ring_r, outline=FG, width=1.5)
+
+
+def _draw_balun_box(canvas, feed_x, feed_y, box_x, box_y, text):
+    """Balun/unun/choke: a dashed leader line from the feedpoint to a small
+    component-box symbol carrying the label -- like a part inserted in the
+    feedline on a real schematic, not just floating text."""
+    canvas.create_line(feed_x, feed_y, box_x, box_y, fill=AMBER, width=1, dash=(3, 2))
+    font = ("Helvetica", 10, "bold")
+    text_id = canvas.create_text(box_x, box_y, text=text, fill="#1a1a1a", font=font, anchor="center")
+    bbox = canvas.bbox(text_id)
+    pad = 5
+    box = canvas.create_rectangle(bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad,
+                                   fill=AMBER, outline="#1a1a1a", width=1.5)
+    canvas.tag_raise(text_id, box)
+
+
 def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float = 0.0, oy: float = 0.0):
     """Draw every op in `scene` onto `canvas`, scaled by `scale` and offset
     by (ox, oy) -- lets the same scene fit canvases of different sizes."""
@@ -93,12 +115,15 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
     for x1, y1, x2, y2 in scene.dim_lines:
         _draw_dim_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2))
 
-    for x, y, r in scene.dots:
-        _draw_glow_dot(canvas, tx(x), ty(y), max(r * scale, 3.0))
-
     for x, y, text, size, bold in scene.texts:
         font = ("Helvetica", max(int(size * scale * 1.3), 9), "bold" if bold else "normal")
         canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor="nw")
+
+    for x, y, r in scene.feed_points:
+        _draw_feed_point(canvas, tx(x), ty(y), max(r * scale, 3.0))
+
+    for feed_x, feed_y, box_x, box_y, text in scene.balun_boxes:
+        _draw_balun_box(canvas, tx(feed_x), ty(feed_y), tx(box_x), ty(box_y), text)
 
 
 def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title: str, not_to_scale_note: str):

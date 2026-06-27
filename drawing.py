@@ -42,9 +42,6 @@ def _svg_from_scene(scene: Scene) -> svgwrite.Drawing:
     for points, width in scene.polygons:
         dwg.add(dwg.polygon(points=points, stroke="black", fill="none", stroke_width=width))
 
-    for x, y, r in scene.dots:
-        dwg.add(dwg.circle(center=(x, y), r=r, fill="black"))
-
     for x1, y1, x2, y2 in scene.dim_lines:
         dwg.add(dwg.line(start=(x1, y1), end=(x2, y2), stroke="black", stroke_width=0.5,
                           marker_start="url(#arrow)", marker_end="url(#arrow)"))
@@ -52,6 +49,22 @@ def _svg_from_scene(scene: Scene) -> svgwrite.Drawing:
     for x, y, text, size, bold in scene.texts:
         dwg.add(dwg.text(text, insert=(x, y), font_size=str(size), font_family="sans-serif",
                           font_weight="bold" if bold else "normal"))
+
+    # Feedpoint: filled dot + an outline ring, so it reads as "the feed"
+    # rather than a generic junction point.
+    for x, y, r in scene.feed_points:
+        dwg.add(dwg.circle(center=(x, y), r=r, fill="black"))
+        dwg.add(dwg.circle(center=(x, y), r=r + 3, fill="none", stroke="black", stroke_width=0.75))
+
+    # Balun/unun/choke: a leader line from the feedpoint to a small
+    # component-box symbol carrying the label, like a real schematic.
+    for feed_x, feed_y, box_x, box_y, text in scene.balun_boxes:
+        dwg.add(dwg.line(start=(feed_x, feed_y), end=(box_x, box_y), stroke="black", stroke_width=0.75, stroke_dasharray="2,2"))
+        box_w = len(text) * 7.0 * 0.62 + 10
+        box_h = 7.0 * 1.8
+        dwg.add(dwg.rect(insert=(box_x - 4, box_y - box_h / 2), size=(box_w, box_h),
+                          fill="white", stroke="black", stroke_width=0.75))
+        dwg.add(dwg.text(text, insert=(box_x, box_y + 2.5), font_size="7", font_family="sans-serif", font_weight="bold"))
 
     return dwg
 
