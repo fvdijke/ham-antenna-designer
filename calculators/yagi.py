@@ -30,8 +30,8 @@ DIRECTOR_SPACING_WAVELENGTHS = 0.15
 
 
 @register("yagi_3_element")
-def design_yagi(band: str, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_yagi(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
     wavelength_ft = 984.0 / freq_mhz  # standard free-space wavelength in feet (984/f)
 
     driven_ft = 468.0 / freq_mhz

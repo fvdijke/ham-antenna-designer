@@ -86,6 +86,8 @@ def _build_argparser():
     parser.add_argument("out", nargs="?", default=None, help="Output SVG path")
     parser.add_argument("--units", choices=["metric", "imperial"], default="metric")
     parser.add_argument("--lang", choices=["en", "nl"], default="en")
+    parser.add_argument("--freq", type=float, default=None, dest="freq_mhz",
+                         help="Custom design frequency in MHz, overriding the band's default")
     return parser
 
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
     args = _build_argparser().parse_args()
     out_path = args.out or f"{args.antenna_type}_{args.band}.svg"
 
-    d = design_fn(args.antenna_type, args.band, lang=args.lang)
+    d = design_fn(args.antenna_type, args.band, lang=args.lang, freq_mhz=args.freq_mhz)
     dwg = draw_antenna(d, units=args.units, lang=args.lang)
     dwg.saveas(out_path)
     print(f"Saved drawing to {out_path}")

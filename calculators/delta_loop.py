@@ -13,8 +13,8 @@ from registry import register
 
 
 @register("delta_loop_vertical")
-def design_delta_loop(band: str, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_delta_loop(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
     total_ft = round(1005.0 / freq_mhz, 3)
     total_m = round(total_ft * METERS_PER_FOOT, 3)
 

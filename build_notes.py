@@ -381,6 +381,8 @@ def _build_argparser():
     parser.add_argument("band", nargs="?", default="20m", help=f"HAM band, one of: {', '.join(BANDS_MHZ)}")
     parser.add_argument("--units", choices=["metric", "imperial"], default="metric")
     parser.add_argument("--lang", choices=["en", "nl"], default="en")
+    parser.add_argument("--freq", type=float, default=None, dest="freq_mhz",
+                         help="Custom design frequency in MHz, overriding the band's default")
     return parser
 
 
@@ -389,5 +391,5 @@ if __name__ == "__main__":
     from registry import design as design_fn
 
     args = _build_argparser().parse_args()
-    d = design_fn(args.antenna_type, args.band, lang=args.lang)
+    d = design_fn(args.antenna_type, args.band, lang=args.lang, freq_mhz=args.freq_mhz)
     print(build_advice(d, units=args.units, lang=args.lang))

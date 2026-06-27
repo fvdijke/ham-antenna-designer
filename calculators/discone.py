@@ -17,7 +17,7 @@ design reference and the IJLRET discone design paper):
   literature commonly cites ~1:10 bandwidth with VSWR < 2.5:1 in receive use).
 """
 
-from data_store import BANDS_MHZ, design_frequency
+from data_store import design_frequency, low_frequency
 from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_DISCONE, BALUN_WHY_DISCONE
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
@@ -28,9 +28,9 @@ DISC_RATIO = 0.7
 
 
 @register("discone_receive")
-def design_discone(band: str, lang: str = "en") -> AntennaDesign:
-    low_mhz, _high_mhz = BANDS_MHZ[band]
-    freq_mhz = design_frequency(band)
+def design_discone(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    low_mhz = low_frequency(band, freq_mhz)
+    freq_mhz = design_frequency(band, freq_mhz)
 
     cone_ft = round(234.0 / low_mhz, 3)
     cone_m = round(cone_ft * METERS_PER_FOOT, 3)

@@ -18,8 +18,8 @@ from registry import register
 
 
 @register("dipole_half_wave")
-def design_dipole(band: str, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_dipole(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
     total_ft = 468.0 / freq_mhz
     leg_ft = round(total_ft / 2, 3)
     leg_m = round(leg_ft * METERS_PER_FOOT, 3)

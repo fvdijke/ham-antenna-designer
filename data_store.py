@@ -18,12 +18,27 @@ CABLES = _load("cables.json")
 ANTENNA_TYPES = _load("antenna_types.json")
 
 
-def design_frequency(band: str) -> float:
-    """Pick a sane design frequency: midpoint of the band, in MHz."""
+def design_frequency(band: str, freq_mhz: float = None) -> float:
+    """Pick the design frequency: the user's custom override if given,
+    otherwise the midpoint of the band, in MHz."""
+    if freq_mhz is not None:
+        return freq_mhz
     if band not in BANDS_MHZ:
         raise ValueError(f"Unknown band '{band}'. Known bands: {', '.join(BANDS_MHZ)}")
     low, high = BANDS_MHZ[band]
     return round((low + high) / 2, 4)
+
+
+def low_frequency(band: str, freq_mhz: float = None) -> float:
+    """The frequency that sets a design's low-end cutoff: the user's custom
+    override if given (no range to speak of -- it IS the target), otherwise
+    the band's low edge."""
+    if freq_mhz is not None:
+        return freq_mhz
+    if band not in BANDS_MHZ:
+        raise ValueError(f"Unknown band '{band}'. Known bands: {', '.join(BANDS_MHZ)}")
+    low, _high = BANDS_MHZ[band]
+    return low
 
 
 def cable_velocity_factor(cable_name: str) -> float:

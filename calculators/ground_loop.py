@@ -20,16 +20,16 @@ Formula (documented, not derived/guessed):
   end-fed long wire).
 """
 
-from data_store import BANDS_MHZ, design_frequency
+from data_store import design_frequency, low_frequency
 from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_GROUND_LOOP, BALUN_WHY_GROUND_LOOP
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
 
 @register("ground_loop_receive")
-def design_ground_loop(band: str, lang: str = "en") -> AntennaDesign:
-    low_mhz, _high_mhz = BANDS_MHZ[band]
-    freq_mhz = design_frequency(band)
+def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    low_mhz = low_frequency(band, freq_mhz)
+    freq_mhz = design_frequency(band, freq_mhz)
 
     total_ft = round(234.0 / low_mhz, 3)
     total_m = round(total_ft * METERS_PER_FOOT, 3)

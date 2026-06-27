@@ -20,8 +20,8 @@ FEED_TAP_FRACTION = 0.20
 
 
 @register("j_pole")
-def design_jpole(band: str, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_jpole(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
 
     radiator_ft = round(468.0 / freq_mhz, 3)
     radiator_m = round(radiator_ft * METERS_PER_FOOT, 3)

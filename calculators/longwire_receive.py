@@ -19,16 +19,16 @@ Formula (documented, not derived/guessed):
   Engineers' MLB-2, rated 100 kHz-30 MHz).
 """
 
-from data_store import BANDS_MHZ, design_frequency
+from data_store import design_frequency, low_frequency
 from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_LONGWIRE, BALUN_WHY_LONGWIRE
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
 
 @register("longwire_receive")
-def design_longwire_receive(band: str, lang: str = "en") -> AntennaDesign:
-    low_mhz, _high_mhz = BANDS_MHZ[band]
-    freq_mhz = design_frequency(band)
+def design_longwire_receive(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    low_mhz = low_frequency(band, freq_mhz)
+    freq_mhz = design_frequency(band, freq_mhz)
 
     min_length_ft = round(234.0 / low_mhz, 3)
     min_length_m = round(min_length_ft * METERS_PER_FOOT, 3)

@@ -27,10 +27,14 @@ def _build_argparser():
         "--lang", choices=["en", "nl"], default="en",
         help="Language for output text (default: en)",
     )
+    parser.add_argument(
+        "--freq", type=float, default=None, dest="freq_mhz",
+        help="Custom design frequency in MHz, overriding the band's default (e.g. --freq 14.25)",
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = _build_argparser().parse_args()
-    d = design(args.antenna_type, args.band, lang=args.lang)
+    d = design(args.antenna_type, args.band, lang=args.lang, freq_mhz=args.freq_mhz)
     print(format_summary(d, units=args.units, lang=args.lang))

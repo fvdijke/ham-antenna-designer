@@ -38,8 +38,8 @@ _DA, _DB = 0.001, 0.07178571429
 
 
 @register("moxon_2_element")
-def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
     wavelength_m = 300.0 / freq_mhz
 
     import math

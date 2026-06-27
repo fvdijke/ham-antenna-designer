@@ -18,8 +18,8 @@ from registry import register
 
 
 @register("five_eighths_vertical")
-def design_five_eighths(band: str, radial_count: int = 4, lang: str = "en") -> AntennaDesign:
-    freq_mhz = design_frequency(band)
+def design_five_eighths(band: str, radial_count: int = 4, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+    freq_mhz = design_frequency(band, freq_mhz)
 
     element_ft = round(585.0 / freq_mhz, 3)
     element_m = round(element_ft * METERS_PER_FOOT, 3)

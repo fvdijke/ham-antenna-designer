@@ -61,6 +61,9 @@ UI_TEXT = {
         "saved": "Saved to {path}",
         "error": "Error",
         "vf_label": "Velocity factor: {vf} ({notes})",
+        "custom_freq": "Custom freq (MHz)",
+        "custom_freq_hint": "Optional -- overrides the band, calculates for this exact frequency",
+        "custom_freq_invalid": "Not a valid frequency -- using the band's default instead",
     },
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
@@ -79,6 +82,9 @@ UI_TEXT = {
         "saved": "Opgeslagen naar {path}",
         "error": "Fout",
         "vf_label": "Velocity factor (VF): {vf} ({notes})",
+        "custom_freq": "Eigen freq (MHz)",
+        "custom_freq_hint": "Optioneel -- overschrijft de band, rekent op deze exacte frequentie",
+        "custom_freq_invalid": "Geen geldige frequentie -- standaardwaarde van de band gebruikt",
     },
 }
 
@@ -142,6 +148,11 @@ class AntennaDesignerApp(tk.Tk):
             "TRadiobutton",
             indicatorcolor=[("selected", AMBER)],
             background=[("active", PANEL_BG)],
+        )
+        style.configure(
+            "TEntry",
+            fieldbackground=PANEL_BG, foreground=FG, insertcolor=AMBER,
+            bordercolor=AMBER, lightcolor=PANEL_BG, darkcolor=PANEL_BG,
         )
 
     def _make_panel(self, parent) -> RoundedPanel:
@@ -220,6 +231,15 @@ class AntennaDesignerApp(tk.Tk):
         self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
         self.cable_vf_label.grid(row=2, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
+        self.custom_freq_label = ttk.Label(controls, text=self._t("custom_freq"), style="Panel.TLabel")
+        self.custom_freq_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.custom_freq = tk.StringVar(value="")
+        custom_freq_entry = ttk.Entry(controls, textvariable=self.custom_freq, width=10)
+        custom_freq_entry.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
+        custom_freq_entry.bind("<KeyRelease>", lambda e: self._calculate())
+        self.custom_freq_hint = ttk.Label(controls, text=self._t("custom_freq_hint"), style="Panel.TLabel")
+        self.custom_freq_hint.grid(row=3, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+
         # Results panel.
         results_border, results_frame = self._make_panel(self)
         results_border.pack(fill="x", padx=14, pady=8)
@@ -291,6 +311,7 @@ class AntennaDesignerApp(tk.Tk):
         self.units_label.config(text=t["units"])
         self.lang_label.config(text=t["language"])
         self.cable_label.config(text=t["feed_cable"])
+        self.custom_freq_label.config(text=t["custom_freq"])
         self.results_title.config(text=t["results"])
         self.advice_title.config(text=t["advice"])
         self.calc_button.set_text(t["calculate"])
@@ -302,13 +323,29 @@ class AntennaDesignerApp(tk.Tk):
         self._update_cable_label()
         self._calculate()
 
+    def _parse_custom_freq(self):
+        raw = self.custom_freq.get().strip()
+        if not raw:
+            self.custom_freq_hint.config(text=self._t("custom_freq_hint"))
+            return None
+        try:
+            freq = float(raw.replace(",", "."))
+            if freq <= 0:
+                raise ValueError
+            self.custom_freq_hint.config(text=self._t("custom_freq_hint"))
+            return freq
+        except ValueError:
+            self.custom_freq_hint.config(text=self._t("custom_freq_invalid"))
+            return None
+
     def _calculate(self):
         lang = self.lang.get()
         units = self.units.get()
         band = self.band.get()
         antenna_type = self.antenna_type.get()
+        freq_mhz = self._parse_custom_freq()
 
-        self.design = design_antenna(antenna_type, band, lang=lang)
+        self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz)
 
         self.results_text.delete("1.0", "end")
         self.results_text.insert("1.0", format_summary(self.design, units=units, lang=lang))
