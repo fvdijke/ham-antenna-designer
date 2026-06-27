@@ -29,12 +29,19 @@ def _add_arrow_marker(dwg: svgwrite.Drawing):
     dwg.defs.add(marker)
 
 
+_LINE_STROKE_BY_KIND = {
+    "element": "black",     # the main radiating wire -- drawn darkest/boldest
+    "radial": "#777777",    # radials/counterpoise -- lighter gray, secondary to the element
+    "reference": "#bbbbbb",  # ground line etc. -- faint, not a real wire
+}
+
+
 def _svg_from_scene(scene: Scene) -> svgwrite.Drawing:
     dwg = _new_drawing(scene.width, scene.height)
     _add_arrow_marker(dwg)
 
-    for x1, y1, x2, y2, width, dashed in scene.lines:
-        kwargs = dict(stroke="black", stroke_width=width)
+    for x1, y1, x2, y2, width, dashed, kind in scene.lines:
+        kwargs = dict(stroke=_LINE_STROKE_BY_KIND.get(kind, "black"), stroke_width=width)
         if dashed:
             kwargs["stroke_dasharray"] = "4,2" if width >= 1 else "2,2"
         dwg.add(dwg.line(start=(x1, y1), end=(x2, y2), **kwargs))

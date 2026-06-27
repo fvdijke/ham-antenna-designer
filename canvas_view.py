@@ -17,7 +17,13 @@ AMBER = "#ffb000"
 AMBER_DIM = "#5a3d00"
 FG = "#e8e8e8"
 
-MAX_CANVAS = 760.0  # fit the largest scene dimension into this many pixels
+# Radials/counterpoise are drawn darker than the main radiating element
+# (the "waveform"), so the part that actually carries the wave stands out
+# from the supporting ground system at a glance.
+AMBER_RADIAL = "#9a6c00"
+REFERENCE_GRAY = "#555555"
+
+MAX_CANVAS = 380.0  # fit the largest scene dimension into this many pixels
 
 
 def _hex_to_rgb(h):
@@ -40,19 +46,36 @@ def _blend(c1, c2, t):
     ))
 
 
+def _glow_layers_for(core_color):
+    """Glow halo colors for a given core color, from outermost (faintest)
+    to innermost (the core itself, drawn at the line's own width)."""
+    return [
+        (_blend(PANEL_BG, core_color, 0.25), 5.0),
+        (_blend(PANEL_BG, core_color, 0.55), 2.5),
+        (core_color, 0.0),
+    ]
+
+
 # Glow halo colors, from outermost (faintest) to innermost (brightest core).
-_GLOW_LAYERS = [
-    (_blend(PANEL_BG, AMBER, 0.25), 5.0),
-    (_blend(PANEL_BG, AMBER, 0.55), 2.5),
-    (AMBER, 0.0),  # core width is the line's own width, added on top
-]
+_GLOW_LAYERS = _glow_layers_for(AMBER)
+_GLOW_LAYERS_RADIAL = _glow_layers_for(AMBER_RADIAL)
+
+_LINE_COLORS_BY_KIND = {
+    "element": _GLOW_LAYERS,
+    "radial": _GLOW_LAYERS_RADIAL,
+}
 
 
-def _draw_glow_line(canvas, x1, y1, x2, y2, width, dashed=False):
+def _draw_glow_line(canvas, x1, y1, x2, y2, width, dashed=False, kind="element"):
     dash = (5, 3) if dashed else None
-    for color, extra in _GLOW_LAYERS[:-1]:
+    if kind == "reference":
+        canvas.create_line(x1, y1, x2, y2, fill=REFERENCE_GRAY, width=width, dash=dash)
+        return
+    layers = _LINE_COLORS_BY_KIND.get(kind, _GLOW_LAYERS)
+    for color, extra in layers[:-1]:
         canvas.create_line(x1, y1, x2, y2, fill=color, width=width + extra, capstyle=tk.ROUND, dash=dash)
-    canvas.create_line(x1, y1, x2, y2, fill=AMBER, width=width, capstyle=tk.ROUND, dash=dash)
+    core_color = layers[-1][0]
+    canvas.create_line(x1, y1, x2, y2, fill=core_color, width=width, capstyle=tk.ROUND, dash=dash)
 
 
 def _draw_glow_polygon(canvas, points, width):
@@ -105,8 +128,8 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
     def ty(y):
         return y * scale + oy
 
-    for x1, y1, x2, y2, width, dashed in scene.lines:
-        _draw_glow_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2), max(width * scale, 1.0), dashed)
+    for x1, y1, x2, y2, width, dashed, kind in scene.lines:
+        _draw_glow_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2), max(width * scale, 1.0), dashed, kind)
 
     for points, width in scene.polygons:
         scaled_points = [(tx(x), ty(y)) for x, y in points]
