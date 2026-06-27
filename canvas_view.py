@@ -1,0 +1,126 @@
+"""In-app schematic viewer: renders a Scene (see scene.py) onto a tk.Canvas
+in the dark/amber HAMIOS-style theme, with a soft glow on the antenna lines
+(inspired by the common-mode-current style illustration: bright amber core,
+dimmer amber halo, on a dark background).
+
+Not true-to-scale -- same disclaimer as the SVG export -- but every element
+shown has its computed dimension labeled, same as the SVG.
+"""
+
+import tkinter as tk
+
+from scene import Scene, build_scene
+
+BG = "#1a1a1a"
+PANEL_BG = "#141414"
+AMBER = "#ffb000"
+AMBER_DIM = "#5a3d00"
+FG = "#e8e8e8"
+
+MAX_CANVAS = 760.0  # fit the largest scene dimension into this many pixels
+
+
+def _hex_to_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb_to_hex(rgb):
+    return "#%02x%02x%02x" % rgb
+
+
+def _blend(c1, c2, t):
+    """t=0 -> c1, t=1 -> c2"""
+    r1, g1, b1 = _hex_to_rgb(c1)
+    r2, g2, b2 = _hex_to_rgb(c2)
+    return _rgb_to_hex((
+        int(r1 + (r2 - r1) * t),
+        int(g1 + (g2 - g1) * t),
+        int(b1 + (b2 - b1) * t),
+    ))
+
+
+# Glow halo colors, from outermost (faintest) to innermost (brightest core).
+_GLOW_LAYERS = [
+    (_blend(PANEL_BG, AMBER, 0.25), 5.0),
+    (_blend(PANEL_BG, AMBER, 0.55), 2.5),
+    (AMBER, 0.0),  # core width is the line's own width, added on top
+]
+
+
+def _draw_glow_line(canvas, x1, y1, x2, y2, width, dashed=False):
+    dash = (5, 3) if dashed else None
+    for color, extra in _GLOW_LAYERS[:-1]:
+        canvas.create_line(x1, y1, x2, y2, fill=color, width=width + extra, capstyle=tk.ROUND, dash=dash)
+    canvas.create_line(x1, y1, x2, y2, fill=AMBER, width=width, capstyle=tk.ROUND, dash=dash)
+
+
+def _draw_glow_polygon(canvas, points, width):
+    flat = [c for p in points for c in p]
+    closed = flat + [flat[0], flat[1]]
+    for i in range(0, len(closed) - 2, 2):
+        _draw_glow_line(canvas, closed[i], closed[i + 1], closed[i + 2], closed[i + 3], width)
+
+
+def _draw_glow_dot(canvas, x, y, r):
+    for color, extra in _GLOW_LAYERS[:-1]:
+        rr = r + extra
+        canvas.create_oval(x - rr, y - rr, x + rr, y + rr, fill=color, outline="")
+    canvas.create_oval(x - r, y - r, x + r, y + r, fill=AMBER, outline="")
+
+
+def _draw_dim_line(canvas, x1, y1, x2, y2):
+    canvas.create_line(x1, y1, x2, y2, fill=FG, width=1, arrow=tk.BOTH, arrowshape=(6, 7, 3))
+
+
+def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float = 0.0, oy: float = 0.0):
+    """Draw every op in `scene` onto `canvas`, scaled by `scale` and offset
+    by (ox, oy) -- lets the same scene fit canvases of different sizes."""
+
+    def tx(x):
+        return x * scale + ox
+
+    def ty(y):
+        return y * scale + oy
+
+    for x1, y1, x2, y2, width, dashed in scene.lines:
+        _draw_glow_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2), max(width * scale, 1.0), dashed)
+
+    for points, width in scene.polygons:
+        scaled_points = [(tx(x), ty(y)) for x, y in points]
+        _draw_glow_polygon(canvas, scaled_points, max(width * scale, 1.0))
+
+    for x1, y1, x2, y2 in scene.dim_lines:
+        _draw_dim_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2))
+
+    for x, y, r in scene.dots:
+        _draw_glow_dot(canvas, tx(x), ty(y), max(r * scale, 3.0))
+
+    for x, y, text, size, bold in scene.texts:
+        font = ("Helvetica", max(int(size * scale * 1.3), 9), "bold" if bold else "normal")
+        canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor="nw")
+
+
+def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title: str, not_to_scale_note: str):
+    """Open a Toplevel with the schematic drawing for `design`."""
+    scene = build_scene(design, units=units, lang=lang, margin=50.0)
+
+    scale = MAX_CANVAS / max(scene.width, scene.height)
+    canvas_w = scene.width * scale + 40
+    canvas_h = scene.height * scale + 70
+
+    win = tk.Toplevel(parent)
+    win.title(window_title)
+    win.configure(bg=BG)
+
+    note = tk.Label(win, text=not_to_scale_note, bg=BG, fg=AMBER, font=("Helvetica", 9, "italic"))
+    note.pack(anchor="w", padx=12, pady=(10, 0))
+
+    canvas = tk.Canvas(win, width=canvas_w, height=canvas_h - 30, bg=PANEL_BG, highlightthickness=0)
+    canvas.pack(padx=12, pady=12)
+
+    render_scene(canvas, scene, scale=scale, ox=20, oy=20)
+
+    win.geometry(f"{int(canvas_w) + 24}x{int(canvas_h) + 24}")
+    win.resizable(True, True)
+    return win

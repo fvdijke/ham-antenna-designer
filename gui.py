@@ -23,6 +23,7 @@ from format_text import format_summary
 from registry import REGISTRY, design as design_antenna
 from settings import load_settings, save_settings
 from widgets import RoundedButton, RoundedPanel
+from canvas_view import show_drawing
 
 BG = "#1a1a1a"
 PANEL_BG = "#1f1f1f"
@@ -52,6 +53,9 @@ UI_TEXT = {
         "feed_cable": "Feed cable (VF)",
         "calculate": "Calculate",
         "export_svg": "Export SVG drawing...",
+        "view_drawing": "View drawing",
+        "drawing_window_title": "Antenna drawing -- {label} ({band})",
+        "not_to_scale": "Schematic only -- NOT to scale. Dimensions shown are the calculated values.",
         "results": "Design",
         "advice": "Build notes",
         "saved": "Saved to {path}",
@@ -67,6 +71,9 @@ UI_TEXT = {
         "feed_cable": "Voedingskabel (VF)",
         "calculate": "Berekenen",
         "export_svg": "SVG-tekening exporteren...",
+        "view_drawing": "Bekijk tekening",
+        "drawing_window_title": "Antennetekening -- {label} ({band})",
+        "not_to_scale": "Alleen schematisch -- NIET op schaal. De getoonde maten zijn de berekende waarden.",
         "results": "Ontwerp",
         "advice": "Bouwnotities",
         "saved": "Opgeslagen naar {path}",
@@ -248,6 +255,11 @@ class AntennaDesignerApp(tk.Tk):
             bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
         )
         self.svg_button.pack(side="left", padx=(8, 0))
+        self.view_button = RoundedButton(
+            footer, text=self._t("view_drawing"), command=self._view_drawing,
+            bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
+        )
+        self.view_button.pack(side="left", padx=(8, 0))
 
         self._update_cable_label()
 
@@ -283,6 +295,7 @@ class AntennaDesignerApp(tk.Tk):
         self.advice_title.config(text=t["advice"])
         self.calc_button.set_text(t["calculate"])
         self.svg_button.set_text(t["export_svg"])
+        self.view_button.set_text(t["view_drawing"])
         # Re-translate the antenna type dropdown without changing the selected type.
         self.type_combo["values"] = self._antenna_type_values()
         self.type_combo_var.set(antenna_type_label(self.antenna_type.get(), self.lang.get()))
@@ -312,6 +325,15 @@ class AntennaDesignerApp(tk.Tk):
         dwg = draw_antenna(self.design, units=self.units.get(), lang=self.lang.get())
         dwg.saveas(path)
         messagebox.showinfo(self._t("window_title"), self._t("saved").format(path=path))
+
+    def _view_drawing(self):
+        if not self.design:
+            return
+        lang = self.lang.get()
+        label = antenna_type_label(self.antenna_type.get(), lang)
+        title = self._t("drawing_window_title").format(label=label, band=self.design.band)
+        show_drawing(self, self.design, units=self.units.get(), lang=lang,
+                      window_title=title, not_to_scale_note=self._t("not_to_scale"))
 
 
 
