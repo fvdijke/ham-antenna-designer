@@ -12,25 +12,39 @@ but every element carries its calculated dimension.
 
 ## Antenna types
 
-**Transmit -- wire & vertical:**
-- Ground-mounted quarter-wave vertical
-- Half-wave dipole / Inverted-V dipole
-- Off-center-fed dipole (Windom)
-- End-fed half-wave (EFHW)
-- 5/8-wave gain vertical
-- Extended double Zepp (EDZ)
-- J-pole (VHF/UHF)
-- Full-wave horizontal loop / Vertical delta loop
+The GUI's "Antenna" picker shows a **shape** (Vertical, Horizontal
+center-fed, Horizontal end-fed, Horizontal loop, or one of the standalone
+designs below); shapes that come in more than one real, documented
+wavelength fraction get a second **Wave** picker next to it. A shape with
+only one fraction (e.g. EFHW) or a standalone design (Yagi, J-pole, ...)
+skips the Wave picker entirely -- it only appears where there's an actual
+choice to make.
 
-**Transmit -- directional (multi-element):**
-- 3-element Yagi
-- 2-element cubical quad
-- Moxon rectangle
+**Vertical** -- quarter wave / half wave (vertical EFHW) / 5/8 wave (gain,
+needs a loading coil) / full wave (very high impedance, 64:1 unun)
 
-**Receive-only (SWL / scanner):**
+**Horizontal, center-fed** -- half wave (the classic dipole) / extended
+1.25λ (EDZ, more gain, needs a balanced tuner)
+
+**Horizontal, end-fed** -- half wave (EFHW)
+
+**Horizontal loop** -- full wave
+
+**Standalone designs** (own fixed electrical design, not a shape+fraction
+combination): Inverted-V dipole, Off-center-fed dipole (Windom), J-pole
+(VHF/UHF), Vertical delta loop, 3-element Yagi, 2-element cubical quad,
+Moxon rectangle.
+
+**Receive-only (SWL / scanner), also standalone:**
 - Long-wire receive (LW/MW/KW, 9:1 unun)
 - Discone receive (VHF/UHF wideband, no balun needed)
 - Loop-on-ground receive (LoG -- noise-canceling LW/MW DX loop)
+
+A full-wave center-fed dipole was deliberately left out: it's not a
+mainstream, well-documented design (a true wavelength-long center feed sits
+on a current null, giving an oddly high, poorly-characterized impedance) --
+the EDZ and full-wave loop already cover "more wire, more gain" with
+formulas that are actually sourced.
 
 ## Bands
 
@@ -54,6 +68,9 @@ shortwave), VHF, and UHF -- each band dropdown shows its frequency range.
   jargon (wave, choke, balun, unun, SWR stay English, as real Dutch hams
   say them) instead of literal textbook translation.
 - **Settings persistence** -- language and units are remembered across runs.
+- **Custom frequency** -- an optional exact-MHz override next to the band
+  picker, for designing at a specific spot in (or outside) the band instead
+  of the band's midpoint.
 
 ## Running it
 

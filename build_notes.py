@@ -23,6 +23,8 @@ from i18n import (
     BUILD_NOTES_MOXON,
     BUILD_NOTES_OCFD,
     BUILD_NOTES_QUAD,
+    BUILD_NOTES_VERTICAL_FULL,
+    BUILD_NOTES_VERTICAL_HALF,
     BUILD_NOTES_YAGI,
     CHOKE_SPEC,
 )
@@ -344,6 +346,36 @@ def _advice_ground_loop(design: AntennaDesign, units: str, lang: str) -> str:
     ])
 
 
+def _advice_vertical_half(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_VERTICAL_HALF[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    counterpoise = design.elements_with_role("counterpoise")[0]
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=_length_str(radiator.length_ft, radiator.length_m, units)), "",
+        t["step2"].format(length_cp=_length_str(counterpoise.length_ft, counterpoise.length_m, units)), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
+def _advice_vertical_full(design: AntennaDesign, units: str, lang: str) -> str:
+    t = BUILD_NOTES_VERTICAL_FULL[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    counterpoise = design.elements_with_role("counterpoise")[0]
+
+    return "\n".join([
+        t["title"].format(band=design.band), "",
+        t["step1"].format(length=_length_str(radiator.length_ft, radiator.length_m, units)), "",
+        t["step2"].format(length_cp=_length_str(counterpoise.length_ft, counterpoise.length_m, units)), "",
+        t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
+        t["step4"].format(balun_type=design.balun["type"], balun_ratio=design.balun["ratio"], balun_why=design.balun["why"]), "",
+        t["step5"],
+    ])
+
+
 _ADVICE_BY_TYPE = {
     "vertical_quarter_wave": _advice_vertical,
     "dipole_half_wave": _advice_dipole,
@@ -361,6 +393,8 @@ _ADVICE_BY_TYPE = {
     "longwire_receive": _advice_longwire,
     "discone_receive": _advice_discone,
     "ground_loop_receive": _advice_ground_loop,
+    "vertical_half_wave": _advice_vertical_half,
+    "vertical_full_wave": _advice_vertical_full,
 }
 
 

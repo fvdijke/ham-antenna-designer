@@ -17,13 +17,33 @@ from tkinter import filedialog, messagebox, ttk
 
 import calculators  # noqa: F401 -- registers all antenna calculator types
 from build_notes import build_advice
-from data_store import BANDS_MHZ, CABLES, antenna_type_label
+from data_store import (
+    BANDS_MHZ, CABLES, SHAPE_FAMILIES, STANDALONE_TYPES,
+    antenna_type_for, antenna_type_label, wave_fractions_for,
+)
 from drawing import draw_antenna
 from format_text import format_summary
+from i18n import SHAPE_FAMILY_LABELS, WAVE_FRACTION_LABELS
 from registry import REGISTRY, design as design_antenna
 from settings import load_settings, save_settings
 from widgets import RoundedButton, RoundedPanel
 from canvas_view import show_drawing
+
+# Shape families with 2+ wavelength-fraction options get a second "Wave"
+# picker; families with only one fraction (or standalone types like Yagi,
+# J-pole, OCF...) skip it entirely -- a dropdown with one possible answer
+# isn't a choice, it's noise.
+SHAPE_FAMILY_ORDER = ["vertical", "horizontal_center_fed", "horizontal_end_fed", "horizontal_loop"]
+
+
+def _primary_choice_keys():
+    return [f for f in SHAPE_FAMILY_ORDER if f in SHAPE_FAMILIES] + STANDALONE_TYPES
+
+
+def _primary_label(key, lang):
+    if key in SHAPE_FAMILIES:
+        return SHAPE_FAMILY_LABELS[key][lang]
+    return antenna_type_label(key, lang)
 
 BG = "#1a1a1a"
 PANEL_BG = "#1f1f1f"
@@ -47,6 +67,7 @@ UI_TEXT = {
     "en": {
         "window_title": "HAM Antenna Designer",
         "antenna_type": "Antenna",
+        "wave": "Wave",
         "band": "Band",
         "units": "Units",
         "language": "Language",
@@ -68,6 +89,7 @@ UI_TEXT = {
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
         "antenna_type": "Antenne",
+        "wave": "Golf",
         "band": "Band",
         "units": "Eenheden",
         "language": "Taal",
@@ -97,6 +119,8 @@ class AntennaDesignerApp(tk.Tk):
         self.lang = tk.StringVar(value=saved["lang"])
         self.units = tk.StringVar(value=saved["units"])
         self.band = tk.StringVar(value="20m")
+        self.primary_choice = tk.StringVar(value="vertical")
+        self.wave_fraction = tk.StringVar(value="1/4")
         self.antenna_type = tk.StringVar(value="vertical_quarter_wave")
         self.feed_cable = tk.StringVar(value=next(iter(CABLES)))
 
@@ -166,16 +190,16 @@ class AntennaDesignerApp(tk.Tk):
     def _t(self, key):
         return UI_TEXT[self.lang.get()][key]
 
-    def _antenna_type_values(self):
+    def _primary_choice_values(self):
         lang = self.lang.get()
-        return [antenna_type_label(t, lang) for t in REGISTRY]
+        return [_primary_label(k, lang) for k in _primary_choice_keys()]
 
-    def _antenna_type_from_label(self, label):
+    def _primary_choice_from_label(self, label):
         lang = self.lang.get()
-        for t in REGISTRY:
-            if antenna_type_label(t, lang) == label:
-                return t
-        return self.antenna_type.get()
+        for k in _primary_choice_keys():
+            if _primary_label(k, lang) == label:
+                return k
+        return self.primary_choice.get()
 
     def _build_layout(self):
         # Header.
@@ -190,13 +214,13 @@ class AntennaDesignerApp(tk.Tk):
 
         self.type_label = ttk.Label(controls, text=self._t("antenna_type"), style="Panel.TLabel")
         self.type_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        self.type_combo_var = tk.StringVar(value=antenna_type_label(self.antenna_type.get(), self.lang.get()))
+        self.type_combo_var = tk.StringVar(value=_primary_label(self.primary_choice.get(), self.lang.get()))
         self.type_combo = ttk.Combobox(
-            controls, textvariable=self.type_combo_var, values=self._antenna_type_values(),
+            controls, textvariable=self.type_combo_var, values=self._primary_choice_values(),
             state="readonly", width=26,
         )
         self.type_combo.grid(row=0, column=1, padx=10, pady=10, sticky="w")
-        self.type_combo.bind("<<ComboboxSelected>>", self._on_type_change)
+        self.type_combo.bind("<<ComboboxSelected>>", self._on_primary_change)
 
         self.band_label = ttk.Label(controls, text=self._t("band"), style="Panel.TLabel")
         self.band_label.grid(row=0, column=2, padx=10, pady=10, sticky="w")
@@ -207,38 +231,46 @@ class AntennaDesignerApp(tk.Tk):
         self.band_combo.grid(row=0, column=3, padx=10, pady=10, sticky="w")
         self.band_combo.bind("<<ComboboxSelected>>", self._on_band_change)
 
+        # Wave (wavelength fraction) picker -- only gridded when the current
+        # shape family actually has 2+ fractions to choose between.
+        self.wave_label = ttk.Label(controls, text=self._t("wave"), style="Panel.TLabel")
+        self.wave_combo_var = tk.StringVar(value="")
+        self.wave_combo = ttk.Combobox(controls, textvariable=self.wave_combo_var, state="readonly", width=22)
+        self.wave_combo.bind("<<ComboboxSelected>>", self._on_wave_change)
+        self._refresh_wave_picker()
+
         self.units_label = ttk.Label(controls, text=self._t("units"), style="Panel.TLabel")
-        self.units_label.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.units_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
         units_frame = ttk.Frame(controls, style="Panel.TFrame")
-        units_frame.grid(row=1, column=1, padx=10, pady=(0, 10), sticky="w")
+        units_frame.grid(row=2, column=1, padx=10, pady=(0, 10), sticky="w")
         for i, val in enumerate(["metric", "imperial"]):
             rb = ttk.Radiobutton(units_frame, text=val, value=val, variable=self.units, command=self._on_units_change)
             rb.grid(row=0, column=i, padx=(0, 6))
 
         self.lang_label = ttk.Label(controls, text=self._t("language"), style="Panel.TLabel")
-        self.lang_label.grid(row=1, column=2, padx=10, pady=(0, 10), sticky="w")
+        self.lang_label.grid(row=2, column=2, padx=10, pady=(0, 10), sticky="w")
         lang_frame = ttk.Frame(controls, style="Panel.TFrame")
-        lang_frame.grid(row=1, column=3, padx=10, pady=(0, 10), sticky="w")
+        lang_frame.grid(row=2, column=3, padx=10, pady=(0, 10), sticky="w")
         for i, val in enumerate(["en", "nl"]):
             rb = ttk.Radiobutton(lang_frame, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
             rb.grid(row=0, column=i, padx=(0, 6))
 
         self.cable_label = ttk.Label(controls, text=self._t("feed_cable"), style="Panel.TLabel")
-        self.cable_label.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.cable_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
         cable_combo = ttk.Combobox(controls, textvariable=self.feed_cable, values=list(CABLES), state="readonly", width=20)
-        cable_combo.grid(row=2, column=1, padx=10, pady=(0, 10), sticky="w")
+        cable_combo.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
         cable_combo.bind("<<ComboboxSelected>>", lambda e: self._update_cable_label())
         self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
-        self.cable_vf_label.grid(row=2, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        self.cable_vf_label.grid(row=3, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         self.custom_freq_label = ttk.Label(controls, text=self._t("custom_freq"), style="Panel.TLabel")
-        self.custom_freq_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.custom_freq_label.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="w")
         self.custom_freq = tk.StringVar(value="")
         custom_freq_entry = ttk.Entry(controls, textvariable=self.custom_freq, width=10)
-        custom_freq_entry.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
+        custom_freq_entry.grid(row=4, column=1, padx=10, pady=(0, 10), sticky="w")
         custom_freq_entry.bind("<KeyRelease>", lambda e: self._calculate())
         self.custom_freq_hint = ttk.Label(controls, text=self._t("custom_freq_hint"), style="Panel.TLabel")
-        self.custom_freq_hint.grid(row=3, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        self.custom_freq_hint.grid(row=4, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Results panel.
         results_border, results_frame = self._make_panel(self)
@@ -289,8 +321,49 @@ class AntennaDesignerApp(tk.Tk):
             text=self._t("vf_label").format(vf=cable["velocity_factor"], notes=cable["notes"])
         )
 
-    def _on_type_change(self, event=None):
-        self.antenna_type.set(self._antenna_type_from_label(self.type_combo_var.get()))
+    def _refresh_wave_picker(self):
+        """Show/populate the Wave dropdown only when the current primary
+        choice is a shape family with 2+ wavelength fractions -- otherwise
+        there's nothing to choose, so hide it entirely."""
+        primary = self.primary_choice.get()
+        fractions = wave_fractions_for(primary) if primary in SHAPE_FAMILIES else []
+        lang = self.lang.get()
+
+        if len(fractions) >= 2:
+            if self.wave_fraction.get() not in fractions:
+                self.wave_fraction.set(fractions[0])
+            self.wave_combo["values"] = [WAVE_FRACTION_LABELS[f][lang] for f in fractions]
+            self.wave_combo_var.set(WAVE_FRACTION_LABELS[self.wave_fraction.get()][lang])
+            self.wave_label.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+            self.wave_combo.grid(row=1, column=1, padx=10, pady=(0, 10), sticky="w")
+        else:
+            self.wave_label.grid_remove()
+            self.wave_combo.grid_remove()
+            if fractions:
+                self.wave_fraction.set(fractions[0])
+
+        self._sync_antenna_type()
+
+    def _sync_antenna_type(self):
+        primary = self.primary_choice.get()
+        if primary in SHAPE_FAMILIES:
+            self.antenna_type.set(antenna_type_for(primary, self.wave_fraction.get()))
+        else:
+            self.antenna_type.set(primary)
+
+    def _on_primary_change(self, event=None):
+        self.primary_choice.set(self._primary_choice_from_label(self.type_combo_var.get()))
+        self._refresh_wave_picker()
+        self._calculate()
+
+    def _on_wave_change(self, event=None):
+        lang = self.lang.get()
+        primary = self.primary_choice.get()
+        for f in wave_fractions_for(primary):
+            if WAVE_FRACTION_LABELS[f][lang] == self.wave_combo_var.get():
+                self.wave_fraction.set(f)
+                break
+        self._sync_antenna_type()
         self._calculate()
 
     def _on_band_change(self, event=None):
@@ -307,6 +380,7 @@ class AntennaDesignerApp(tk.Tk):
         self.title(t["window_title"])
         self.title_label.config(text=t["window_title"])
         self.type_label.config(text=t["antenna_type"])
+        self.wave_label.config(text=t["wave"])
         self.band_label.config(text=t["band"])
         self.units_label.config(text=t["units"])
         self.lang_label.config(text=t["language"])
@@ -317,9 +391,10 @@ class AntennaDesignerApp(tk.Tk):
         self.calc_button.set_text(t["calculate"])
         self.svg_button.set_text(t["export_svg"])
         self.view_button.set_text(t["view_drawing"])
-        # Re-translate the antenna type dropdown without changing the selected type.
-        self.type_combo["values"] = self._antenna_type_values()
-        self.type_combo_var.set(antenna_type_label(self.antenna_type.get(), self.lang.get()))
+        # Re-translate the antenna/wave dropdowns without changing the selected type.
+        self.type_combo["values"] = self._primary_choice_values()
+        self.type_combo_var.set(_primary_label(self.primary_choice.get(), self.lang.get()))
+        self._refresh_wave_picker()
         self._update_cable_label()
         self._calculate()
 

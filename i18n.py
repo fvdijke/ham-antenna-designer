@@ -4,6 +4,21 @@ Only display text is translated. Formulas, units math, and data keys
 (band names, internal dict keys) stay in English/standard form.
 """
 
+SHAPE_FAMILY_LABELS = {
+    "vertical": {"en": "Vertical", "nl": "Verticaal"},
+    "horizontal_center_fed": {"en": "Horizontal (center-fed)", "nl": "Horizontaal (middengevoed)"},
+    "horizontal_end_fed": {"en": "Horizontal (end-fed)", "nl": "Horizontaal (end-fed)"},
+    "horizontal_loop": {"en": "Horizontal loop", "nl": "Horizontale loop"},
+}
+
+WAVE_FRACTION_LABELS = {
+    "1/4": {"en": "Quarter wave (1/4 λ)", "nl": "Kwart golf (1/4 λ)"},
+    "1/2": {"en": "Half wave (1/2 λ)", "nl": "Halve golf (1/2 λ)"},
+    "5/8": {"en": "5/8 wave", "nl": "5/8 golf"},
+    "1": {"en": "Full wave (1 λ)", "nl": "Volledige golf (1 λ)"},
+    "1.25": {"en": "Extended (1.25 λ, EDZ)", "nl": "Extended (1.25 λ, EDZ)"},
+}
+
 ROLE_LABELS = {
     "radiator": {"en": "Radiator", "nl": "Stralend element"},
     "radial": {"en": "Radials", "nl": "Radialen"},
@@ -39,6 +54,7 @@ BALUN_TYPE_LABELS = {
     "current_choke_1_1": {"en": "1:1 current choke", "nl": "1:1 stroomchoke"},
     "current_balun_1_1": {"en": "1:1 current balun", "nl": "1:1 stroombalun"},
     "unun_49_1": {"en": "49:1 unun", "nl": "49:1 unun"},
+    "unun_64_1": {"en": "64:1 unun", "nl": "64:1 unun"},
     "current_balun_4_1": {"en": "4:1 current balun", "nl": "4:1 stroombalun"},
     "tap_point_match": {"en": "Tap-point match (no balun)", "nl": "Aftakpunt-aanpassing (geen balun)"},
     "base_loading_coil": {"en": "Base loading coil", "nl": "Spoel aan de voet"},
@@ -79,6 +95,11 @@ BALUN_WHERE_EFHW = {
 BALUN_WHY_EFHW = {
     "en": "transforms the high impedance (roughly 2000-4500 ohms) at the end-fed point down to ~50 ohms for the coax/radio",
     "nl": "transformeert de hoge impedantie (ongeveer 2000-4500 ohm) op het end-fed punt omlaag naar ~50 ohm voor de coax/radio",
+}
+
+BALUN_WHY_FULL_WAVE_VERTICAL = {
+    "en": "a full-wavelength end-fed point runs even higher impedance than a half-wave's (often several thousand ohms); a 64:1 unun targets that higher range better than the standard 49:1",
+    "nl": "een end-fed punt op volledige golflengte heeft een nog hogere impedantie dan bij een halve golf (vaak enkele duizenden ohm); een 64:1 unun is hierop beter afgestemd dan de standaard 49:1",
 }
 
 BALUN_WHERE_LOOP = {
@@ -263,6 +284,44 @@ BUILD_NOTES_EFHW = {
         "step3": "3. Voedingspunt: verbind het hoge-impedantie-einde van de straler en de counterpoise met de unun.\n   Verwacht ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert naar ~50 ohm.",
         "step4": "4. Unun: gebruik een {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
         "step5": "5. Routering: houd de counterpoise weg van de stralende draad (laat ze niet dicht parallel lopen) --\n   en houd de straler weg van metalen constructies, die hem ontstemmen.",
+    },
+}
+
+BUILD_NOTES_VERTICAL_HALF = {
+    "en": {
+        "title": "Build notes -- {band} half-wave vertical (vertical EFHW)",
+        "step1": "1. Cut the radiator wire to {length} and mount it vertically, fed at the bottom --\n   this is the same half-wave wire as a horizontal EFHW, just stood upright for a lower radiation angle.",
+        "step2": "2. Cut a counterpoise wire to {length_cp} and run it along the ground from the base --\n   this is not a resonant radial system, just a return path for the unun.",
+        "step3": "3. Feedpoint: connect the radiator's bottom end and the counterpoise to the unun.\n   Expect ~{ohms} ohms at this point before the unun transforms it down to ~50 ohms.",
+        "step4": "4. Unun: use a {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. Support: the bottom of the radiator needs an insulated base (PVC stand-off or rope to an\n   anchor) -- it's at the high-voltage end, so keep it clear of anything people or pets can touch.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} halve-golf verticaal (verticale EFHW)",
+        "step1": "1. Knip de stralende draad af op {length} en monteer verticaal, gevoed aan de onderkant --\n   dit is dezelfde halve-golf draad als een horizontale EFHW, alleen rechtop voor een lagere uitstralingshoek.",
+        "step2": "2. Knip een counterpoise-draad af op {length_cp} en leg deze langs de grond vanaf de voet --\n   dit is geen resonant radialensysteem, slechts een retourpad voor de unun.",
+        "step3": "3. Voedingspunt: verbind de onderkant van de straler en de counterpoise met de unun.\n   Verwacht ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert naar ~50 ohm.",
+        "step4": "4. Unun: gebruik een {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Ondersteuning: de onderkant van de straler heeft een geisoleerde voet nodig (PVC-steun of\n   touw naar een anker) -- dit is het hoogspanningseinde, houd het uit bereik van mens en dier.",
+    },
+}
+
+BUILD_NOTES_VERTICAL_FULL = {
+    "en": {
+        "title": "Build notes -- {band} full-wave vertical",
+        "step1": "1. Cut the radiator wire to {length} and mount it vertically, fed at the bottom --\n   double the length of a half-wave vertical, for the same end-fed principle.",
+        "step2": "2. Cut a counterpoise wire to {length_cp} and run it along the ground from the base --\n   still just a return path for the unun, not a resonant radial system.",
+        "step3": "3. Feedpoint: connect the radiator's bottom end and the counterpoise to the unun.\n   Expect ~{ohms} ohms at this point -- even higher than a half-wave end-fed's already-high impedance.",
+        "step4": "4. Unun: use a {balun_type} ({balun_ratio}) at the feedpoint -- {balun_why}.",
+        "step5": "5. Support: needs a tall single support (mast, tree, or similar) able to hold the full length\n   vertically -- this is the main practical limit on this antenna, more than the electrical design.",
+    },
+    "nl": {
+        "title": "Bouwnotities -- {band} volledige-golf verticaal",
+        "step1": "1. Knip de stralende draad af op {length} en monteer verticaal, gevoed aan de onderkant --\n   dubbele lengte van een halve-golf verticaal, volgens hetzelfde end-fed principe.",
+        "step2": "2. Knip een counterpoise-draad af op {length_cp} en leg deze langs de grond vanaf de voet --\n   nog steeds slechts een retourpad voor de unun, geen resonant radialensysteem.",
+        "step3": "3. Voedingspunt: verbind de onderkant van de straler en de counterpoise met de unun.\n   Verwacht ~{ohms} ohm op dit punt -- nog hoger dan de toch al hoge impedantie van een halve-golf end-fed.",
+        "step4": "4. Unun: gebruik een {balun_type} ({balun_ratio}) bij het voedingspunt -- {balun_why}.",
+        "step5": "5. Ondersteuning: vereist een enkele hoge steun (mast, boom of vergelijkbaar) die de volledige\n   lengte verticaal kan houden -- dit is de praktische beperking van deze antenne, meer dan het elektrische ontwerp.",
     },
 }
 

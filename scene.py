@@ -538,8 +538,46 @@ def _scene_discone(design: AntennaDesign, units: str, lang: str, margin: float) 
     return s
 
 
+def _scene_vertical_end_fed(design: AntennaDesign, units: str, lang: str, margin: float) -> Scene:
+    """Half-/full-wave vertical: radiator runs straight up from the base
+    feedpoint, with a short counterpoise running along the ground."""
+    t = DRAWING[lang]
+    radiator = design.elements_with_role("radiator")[0]
+    counterpoise = design.elements_with_role("counterpoise")[0]
+    scale = _scale_for(radiator.length_m)
+    radiator_u = radiator.length_m * scale
+    counterpoise_u = counterpoise.length_m * scale
+
+    width = counterpoise_u + margin * 2 + 40
+    height = radiator_u + margin * 2 + 20
+    s = Scene(width, height)
+
+    base_x = margin + 40
+    feed_y = height - margin
+    top_y = feed_y - radiator_u
+
+    s.line(margin / 2, feed_y, width - margin / 2, feed_y, width=1, dashed=True)
+    s.line(base_x, feed_y, base_x, top_y, width=2)
+    s.feed_point(base_x, feed_y)
+    s.balun_box(base_x, feed_y, base_x - 60, feed_y - 25, design.balun["type"])
+
+    dim_x = base_x + 15
+    s.dim_line(dim_x, feed_y, dim_x, top_y)
+    s.text(dim_x + 5, (feed_y + top_y) / 2, t["element_label"].format(length=_fmt_length(radiator.length_m, units)))
+
+    cp_end_x = base_x + counterpoise_u
+    s.line(base_x, feed_y, cp_end_x, feed_y, width=1, dashed=False)
+    s.text(base_x + 5, feed_y + 14, t["counterpoise_label"].format(count=1, length=_fmt_length(counterpoise.length_m, units)))
+
+    s.text(margin / 2, margin / 2, t["band_label"].format(band=design.band, freq=design.design_freq_mhz), size=9, bold=True)
+    s.text(margin / 2, feed_y + 30, t["feedpoint_label"].format(
+        ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
+    return s
+
+
 _SCENE_BUILDERS = {
     "vertical": _scene_vertical,
+    "vertical_end_fed": _scene_vertical_end_fed,
     "horizontal_center_fed": _scene_horizontal_center_fed,
     "horizontal_end_fed": _scene_horizontal_end_fed,
     "horizontal_loop": _scene_horizontal_loop,

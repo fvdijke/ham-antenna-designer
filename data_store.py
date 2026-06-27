@@ -17,6 +17,31 @@ BANDS_MHZ = {k: tuple(v) for k, v in _load("bands.json").items()}
 CABLES = _load("cables.json")
 ANTENNA_TYPES = _load("antenna_types.json")
 
+# Antenna types that share a physical shape but come in different wavelength
+# fractions (e.g. vertical: 1/4, 1/2, 5/8, 1) are grouped here so the GUI can
+# offer "shape" then "wave fraction" as two independent pickers instead of
+# one long flat list. Types without a shape_family (Yagi, J-pole, OCF, ...)
+# are distinct designs in their own right and stay as direct single picks.
+SHAPE_FAMILIES = {}
+for _type_key, _meta in ANTENNA_TYPES.items():
+    if "shape_family" in _meta:
+        SHAPE_FAMILIES.setdefault(_meta["shape_family"], {})[_meta["wave_fraction"]] = _type_key
+
+STANDALONE_TYPES = [k for k, v in ANTENNA_TYPES.items() if "shape_family" not in v]
+
+# Fraction sort order within a shape family (smallest to largest wavelength).
+_FRACTION_ORDER = ["1/4", "1/2", "5/8", "1", "1.25"]
+
+
+def wave_fractions_for(shape_family: str):
+    """Wave fractions available for a shape family, in ascending order."""
+    fractions = SHAPE_FAMILIES.get(shape_family, {})
+    return sorted(fractions, key=lambda f: _FRACTION_ORDER.index(f) if f in _FRACTION_ORDER else 99)
+
+
+def antenna_type_for(shape_family: str, wave_fraction: str) -> str:
+    return SHAPE_FAMILIES[shape_family][wave_fraction]
+
 
 def design_frequency(band: str, freq_mhz: float = None) -> float:
     """Pick the design frequency: the user's custom override if given,

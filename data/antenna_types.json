@@ -3,25 +3,65 @@
     "label_en": "Ground-mounted quarter-wave vertical",
     "label_nl": "Grondgemonteerde quarter-wave verticaal",
     "geometry": "vertical",
-    "feed_location": "base"
+    "feed_location": "base",
+    "shape_family": "vertical",
+    "wave_fraction": "1/4"
+  },
+  "vertical_half_wave": {
+    "label_en": "Half-wave vertical (vertical EFHW)",
+    "label_nl": "Halve-golf verticaal (verticale EFHW)",
+    "geometry": "vertical_end_fed",
+    "feed_location": "base",
+    "shape_family": "vertical",
+    "wave_fraction": "1/2"
+  },
+  "five_eighths_vertical": {
+    "label_en": "5/8-wave gain vertical",
+    "label_nl": "5/8-wave gain-verticaal",
+    "geometry": "vertical",
+    "feed_location": "base",
+    "shape_family": "vertical",
+    "wave_fraction": "5/8"
+  },
+  "vertical_full_wave": {
+    "label_en": "Full-wave vertical",
+    "label_nl": "Volledige-golf verticaal",
+    "geometry": "vertical_end_fed",
+    "feed_location": "base",
+    "shape_family": "vertical",
+    "wave_fraction": "1"
   },
   "dipole_half_wave": {
     "label_en": "Half-wave dipole",
     "label_nl": "Half-wave dipool",
     "geometry": "horizontal_center_fed",
-    "feed_location": "center"
+    "feed_location": "center",
+    "shape_family": "horizontal_center_fed",
+    "wave_fraction": "1/2"
+  },
+  "extended_double_zepp": {
+    "label_en": "Extended double Zepp (EDZ)",
+    "label_nl": "Extended double Zepp (EDZ)",
+    "geometry": "horizontal_center_fed",
+    "feed_location": "center",
+    "shape_family": "horizontal_center_fed",
+    "wave_fraction": "1.25"
   },
   "efhw": {
     "label_en": "End-fed half-wave (EFHW)",
     "label_nl": "End-fed half-wave (EFHW)",
     "geometry": "horizontal_end_fed",
-    "feed_location": "end"
+    "feed_location": "end",
+    "shape_family": "horizontal_end_fed",
+    "wave_fraction": "1/2"
   },
   "loop_full_wave": {
     "label_en": "Full-wave horizontal loop",
     "label_nl": "Full-wave horizontale loop",
     "geometry": "horizontal_loop",
-    "feed_location": "side"
+    "feed_location": "side",
+    "shape_family": "horizontal_loop",
+    "wave_fraction": "1"
   },
   "inverted_v_dipole": {
     "label_en": "Inverted-V dipole",
@@ -40,18 +80,6 @@
     "label_nl": "J-pole (VHF/UHF)",
     "geometry": "j_pole",
     "feed_location": "stub_tap"
-  },
-  "five_eighths_vertical": {
-    "label_en": "5/8-wave gain vertical",
-    "label_nl": "5/8-wave gain-verticaal",
-    "geometry": "vertical",
-    "feed_location": "base"
-  },
-  "extended_double_zepp": {
-    "label_en": "Extended double Zepp (EDZ)",
-    "label_nl": "Extended double Zepp (EDZ)",
-    "geometry": "horizontal_center_fed",
-    "feed_location": "center"
   },
   "delta_loop_vertical": {
     "label_en": "Vertical delta loop",
