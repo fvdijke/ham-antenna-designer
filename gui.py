@@ -75,6 +75,7 @@ UI_TEXT = {
         "calculate": "Calculate",
         "export_svg": "Export SVG drawing...",
         "view_drawing": "View drawing",
+        "exit": "Exit",
         "drawing_window_title": "Antenna drawing -- {label} ({band})",
         "not_to_scale": "Schematic only -- NOT to scale. Dimensions shown are the calculated values.",
         "results": "Design",
@@ -97,6 +98,7 @@ UI_TEXT = {
         "calculate": "Berekenen",
         "export_svg": "SVG-tekening exporteren...",
         "view_drawing": "Bekijk tekening",
+        "exit": "Afsluiten",
         "drawing_window_title": "Antennetekening -- {label} ({band})",
         "not_to_scale": "Alleen schematisch -- NIET op schaal. De getoonde maten zijn de berekende waarden.",
         "results": "Ontwerp",
@@ -202,11 +204,37 @@ class AntennaDesignerApp(tk.Tk):
         return self.primary_choice.get()
 
     def _build_layout(self):
-        # Header.
+        # Header -- title on the left, action buttons on the right (incl.
+        # a red Exit button), so the whole control bar lives at the very
+        # top of the window instead of a separate footer.
         header = ttk.Frame(self)
         header.pack(fill="x", padx=12, pady=(12, 6))
         self.title_label = ttk.Label(header, text=self._t("window_title"), style="Title.TLabel")
         self.title_label.pack(side="left")
+
+        button_bar = tk.Frame(header, bg=BG)
+        button_bar.pack(side="right")
+
+        self.exit_button = RoundedButton(
+            button_bar, text=self._t("exit"), command=self.destroy,
+            bg="#c0392b", fg="#ffffff", active_bg="#e74c3c", font=FONT_LABEL,
+        )
+        self.exit_button.pack(side="right")
+        self.view_button = RoundedButton(
+            button_bar, text=self._t("view_drawing"), command=self._view_drawing,
+            bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
+        )
+        self.view_button.pack(side="right", padx=(0, 8))
+        self.svg_button = RoundedButton(
+            button_bar, text=self._t("export_svg"), command=self._export_svg,
+            bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
+        )
+        self.svg_button.pack(side="right", padx=(0, 8))
+        self.calc_button = RoundedButton(
+            button_bar, text=self._t("calculate"), command=self._calculate,
+            bg=AMBER, fg="#1a1a1a", active_bg="#ffcb4d", font=FONT_LABEL,
+        )
+        self.calc_button.pack(side="right", padx=(0, 8))
 
         # Controls panel (amber-bordered, like HAMIOS panels).
         controls_border, controls = self._make_panel(self)
@@ -280,6 +308,7 @@ class AntennaDesignerApp(tk.Tk):
         self.results_text = tk.Text(
             results_frame, height=6, bg=PANEL_BG, fg=AMBER, insertbackground=AMBER,
             font=FONT_MONO, relief="flat", borderwidth=0, padx=10, pady=10,
+            highlightthickness=0,
         )
         self.results_text.pack(fill="x", padx=12, pady=12)
 
@@ -291,27 +320,9 @@ class AntennaDesignerApp(tk.Tk):
         self.advice_text = tk.Text(
             advice_frame, bg=PANEL_BG, fg=FG, insertbackground=AMBER,
             font=FONT_COURIER, relief="flat", borderwidth=0, wrap="word", padx=12, pady=12,
+            highlightthickness=0,
         )
         self.advice_text.pack(fill="both", expand=True, padx=12, pady=12)
-
-        # Footer / export buttons.
-        footer = tk.Frame(self, bg=BG)
-        footer.pack(fill="x", padx=12, pady=(6, 12))
-        self.calc_button = RoundedButton(
-            footer, text=self._t("calculate"), command=self._calculate,
-            bg=AMBER, fg="#1a1a1a", active_bg="#ffcb4d", font=FONT_LABEL,
-        )
-        self.calc_button.pack(side="left")
-        self.svg_button = RoundedButton(
-            footer, text=self._t("export_svg"), command=self._export_svg,
-            bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
-        )
-        self.svg_button.pack(side="left", padx=(8, 0))
-        self.view_button = RoundedButton(
-            footer, text=self._t("view_drawing"), command=self._view_drawing,
-            bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=FONT_LABEL,
-        )
-        self.view_button.pack(side="left", padx=(8, 0))
 
         self._update_cable_label()
 
@@ -391,6 +402,7 @@ class AntennaDesignerApp(tk.Tk):
         self.calc_button.set_text(t["calculate"])
         self.svg_button.set_text(t["export_svg"])
         self.view_button.set_text(t["view_drawing"])
+        self.exit_button.set_text(t["exit"])
         # Re-translate the antenna/wave dropdowns without changing the selected type.
         self.type_combo["values"] = self._primary_choice_values()
         self.type_combo_var.set(_primary_label(self.primary_choice.get(), self.lang.get()))
