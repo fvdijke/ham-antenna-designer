@@ -93,13 +93,15 @@ def _draw_balun_box(canvas, feed_x, feed_y, box_x, box_y, text):
 _TAG_BOX_COLORS = {"core": AMBER, "shield": AMBER_RADIAL}
 
 
-def _draw_tag_box(canvas, x, y, text, kind):
+def _draw_tag_box(canvas, anchor_x, anchor_y, box_x, box_y, text, kind):
     """Core/shield tag, boxed and filled with that wire's own color -- same
-    look as the balun box, so the tag visually matches the wire color it's
-    identifying instead of being plain floating text."""
+    look as the balun box, connected to the point it's labeling by a dashed
+    leader line so the box itself can sit well clear of the feedpoint and
+    other labels without losing its meaning."""
     color = _TAG_BOX_COLORS.get(kind, AMBER)
+    canvas.create_line(anchor_x, anchor_y, box_x, box_y, fill=color, width=1, dash=(3, 2))
     font = ("Helvetica", 10, "bold")
-    text_id = canvas.create_text(x, y, text=text, fill="#1a1a1a", font=font, anchor="w")
+    text_id = canvas.create_text(box_x, box_y, text=text, fill="#1a1a1a", font=font, anchor="center")
     bbox = canvas.bbox(text_id)
     pad = 4
     box = canvas.create_rectangle(bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad,
@@ -127,9 +129,10 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
     for x1, y1, x2, y2 in scene.dim_lines:
         _draw_dim_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2))
 
-    for x, y, text, size, bold in scene.texts:
+    for x, y, text, size, bold, align in scene.texts:
         font = ("Helvetica", max(int(size * scale * 1.45), 11), "bold" if bold else "normal")
-        canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor="nw")
+        anchor = "ne" if align == "right" else "nw"
+        canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor=anchor)
 
     for x, y, r in scene.feed_points:
         _draw_feed_point(canvas, tx(x), ty(y), max(r * scale, 3.0))
@@ -137,8 +140,8 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
     for feed_x, feed_y, box_x, box_y, text in scene.balun_boxes:
         _draw_balun_box(canvas, tx(feed_x), ty(feed_y), tx(box_x), ty(box_y), text)
 
-    for x, y, text, kind in scene.tag_boxes:
-        _draw_tag_box(canvas, tx(x), ty(y), text, kind)
+    for anchor_x, anchor_y, box_x, box_y, text, kind in scene.tag_boxes:
+        _draw_tag_box(canvas, tx(anchor_x), ty(anchor_y), tx(box_x), ty(box_y), text, kind)
 
 
 def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title: str, not_to_scale_note: str):

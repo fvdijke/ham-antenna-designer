@@ -15,7 +15,7 @@ def _fmt_len(length_ft: float, length_m: float, units: str) -> str:
 def format_summary(design: AntennaDesign, units: str = "metric", lang: str = "en") -> str:
     t = SUMMARY_LABELS[lang]
     label = antenna_type_label(design.antenna_type, lang)
-    lines = [f"{label} -- {design.band} band", f"  {t['freq']}: {design.design_freq_mhz} MHz"]
+    lines = [f"{label} -- {design.band} band", "", f"  {t['freq']}: {design.design_freq_mhz} MHz"]
 
     groups = OrderedDict()
     for e in design.elements:

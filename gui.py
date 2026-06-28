@@ -54,7 +54,6 @@ AMBER = "#ffb000"
 AMBER_DIM = "#8a6000"
 FONT_TITLE = ("Helvetica", 13, "bold")
 FONT_LABEL = ("Helvetica", 10)
-FONT_COMBO = ("Helvetica", 9)
 FONT_COURIER = ("Courier New", 11)
 
 
@@ -160,7 +159,6 @@ class AntennaDesignerApp(tk.Tk):
             fieldbackground=PANEL_BG, background=PANEL_BG, foreground=FG,
             arrowcolor=AMBER, selectbackground=PANEL_BG, selectforeground=AMBER,
             bordercolor=AMBER, lightcolor=PANEL_BG, darkcolor=PANEL_BG,
-            font=FONT_COMBO,
         )
         style.map(
             "TCombobox",
@@ -172,7 +170,6 @@ class AntennaDesignerApp(tk.Tk):
         self.option_add("*TCombobox*Listbox.foreground", FG)
         self.option_add("*TCombobox*Listbox.selectBackground", AMBER_DIM)
         self.option_add("*TCombobox*Listbox.selectForeground", "#000000")
-        self.option_add("*TCombobox*Listbox.font", FONT_COMBO)
         style.configure("TRadiobutton", background=PANEL_BG, foreground=FG, font=FONT_LABEL)
         style.map(
             "TRadiobutton",
@@ -433,7 +430,7 @@ class AntennaDesignerApp(tk.Tk):
 
     _NUMBERED_LINE = re.compile(r"^\d+\.\s+")
 
-    def _set_text_with_hanging_indent(self, text_widget, content):
+    def _set_text_with_hanging_indent(self, text_widget, content, highlight_title=False):
         """Insert `content` and make word-wrapped continuation lines indent
         to line up under the text (not back to column 0) -- matches the
         leading spaces of manually-broken lines, or the width of a numbered
@@ -453,6 +450,10 @@ class AntennaDesignerApp(tk.Tk):
                 text_widget.tag_configure(tag, lmargin1=0, lmargin2=indent_chars * space_w)
                 text_widget.tag_add(tag, f"{i}.0", f"{i}.end")
 
+        if highlight_title:
+            text_widget.tag_configure("title", foreground=AMBER, font=(fnt.actual("family"), fnt.actual("size"), "bold"))
+            text_widget.tag_add("title", "1.0", "1.end")
+
     def _calculate(self):
         lang = self.lang.get()
         units = self.units.get()
@@ -462,7 +463,7 @@ class AntennaDesignerApp(tk.Tk):
 
         self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz)
 
-        self._set_text_with_hanging_indent(self.results_text, format_summary(self.design, units=units, lang=lang))
+        self._set_text_with_hanging_indent(self.results_text, format_summary(self.design, units=units, lang=lang), highlight_title=True)
         self._set_text_with_hanging_indent(self.advice_text, build_advice(self.design, units=units, lang=lang))
 
     def _export_svg(self):

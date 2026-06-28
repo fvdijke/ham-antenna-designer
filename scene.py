@@ -33,7 +33,7 @@ class Scene:
     lines: List[Tuple[float, float, float, float, float, bool, str]] = field(default_factory=list)
     polygons: List[Tuple[list, float]] = field(default_factory=list)  # points, width
     dim_lines: List[Tuple[float, float, float, float]] = field(default_factory=list)  # x1,y1,x2,y2
-    texts: List[Tuple[float, float, str, int, bool]] = field(default_factory=list)  # x,y,text,size,bold
+    texts: List[Tuple[float, float, str, int, bool, str]] = field(default_factory=list)  # x,y,text,size,bold,align
     # Feedpoint: a dot plus a ring around it (donut shape), visually distinct
     # from plain element/junction dots so it reads as "this is the feed".
     feed_points: List[Tuple[float, float, float]] = field(default_factory=list)  # x,y,r
@@ -43,9 +43,10 @@ class Scene:
     balun_boxes: List[Tuple[float, float, float, float, str]] = field(default_factory=list)  # feed_x,feed_y,box_x,box_y,text
     # Core/shield identification tags, boxed the same way as the balun --
     # filled with that wire's own color ("core" = bright element color,
-    # "shield" = dim radial color) so the tag visually matches the wire it
-    # points at, instead of being plain floating text.
-    tag_boxes: List[Tuple[float, float, str, str]] = field(default_factory=list)  # x,y,text,kind
+    # "shield" = dim radial color), connected to the point it's labeling by
+    # a dashed leader line -- same idea as the balun box, so the box can sit
+    # well clear of the feedpoint/other labels without losing its meaning.
+    tag_boxes: List[Tuple[float, float, float, float, str, str]] = field(default_factory=list)  # anchor_x,anchor_y,box_x,box_y,text,kind
 
     def line(self, x1, y1, x2, y2, width=2.0, dashed=False, kind="element"):
         self.lines.append((x1, y1, x2, y2, width, dashed, kind))
@@ -56,8 +57,8 @@ class Scene:
     def dim_line(self, x1, y1, x2, y2):
         self.dim_lines.append((x1, y1, x2, y2))
 
-    def text(self, x, y, text, size=8, bold=False):
-        self.texts.append((x, y, text, size, bold))
+    def text(self, x, y, text, size=8, bold=False, align="left"):
+        self.texts.append((x, y, text, size, bold, align))
 
     def feed_point(self, x, y, r=5.0):
         self.feed_points.append((x, y, r))
@@ -65,23 +66,24 @@ class Scene:
     def balun_box(self, feed_x, feed_y, box_x, box_y, text):
         self.balun_boxes.append((feed_x, feed_y, box_x, box_y, text))
 
-    def tag_box(self, x, y, text, kind="core"):
-        self.tag_boxes.append((x, y, text, kind))
+    def tag_box(self, anchor_x, anchor_y, box_x, box_y, text, kind="core"):
+        self.tag_boxes.append((anchor_x, anchor_y, box_x, box_y, text, kind))
 
 
 INFO_BLOCK_H = 40.0  # reserved height at the bottom for the combined caption
 
 
-def _place_info_block(s: Scene, t: dict, design: AntennaDesign, margin: float, height: float) -> None:
+def _place_info_block(s: Scene, t: dict, design: AntennaDesign, margin: float) -> None:
     """Design band/frequency + feedpoint impedance/balun, always together at
-    the bottom-left of the drawing -- one caption block instead of being
-    scattered between the top and bottom of the schematic. Callers must
-    reserve INFO_BLOCK_H of height below their lowest piece of geometry/text
-    so this never collides with anything."""
-    s.text(margin / 2, height - 34, t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
-           size=10, bold=True)
-    s.text(margin / 2, height - 14, t["feedpoint_label"].format(
-        ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]))
+    the top-right of the drawing -- one caption block, right-aligned in the
+    top margin strip (above where any geometry starts), so it never collides
+    with the schematic itself regardless of that antenna's shape."""
+    x = s.width - margin / 2
+    s.text(x, margin / 2, t["band_label"].format(band=design.band, freq=design.design_freq_mhz),
+           size=10, bold=True, align="right")
+    s.text(x, margin / 2 + 18, t["feedpoint_label"].format(
+        ohms=f"{design.feedpoint_impedance_ohms:.0f}", balun_type=design.balun["type"], balun_ratio=design.balun["ratio"]),
+        align="right")
 
 
 def _scale_for(natural_extent_m: float) -> float:
@@ -119,7 +121,7 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
     label_room = 24.0  # space below the radial tips for their length labels
 
     height = element_u + margin * 2 + max_drop + label_room + INFO_BLOCK_H
-    width = radial_u * 2 + margin * 2 if radials else element_u * 0.6 + margin * 2
+    width = (radial_u * 2 + margin * 2 if radials else element_u * 0.6 + margin * 2) + 75
     s = Scene(width, height)
 
     base_x = width / 2
@@ -129,8 +131,8 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
     s.line(margin / 2, base_y, width - margin / 2, base_y, width=1, dashed=True, kind="reference")
     s.line(base_x, base_y, base_x, top_y, width=2)
     s.feed_point(base_x, base_y)
-    s.tag_box(base_x + 8, base_y - 34, t["core_tag"], "core")
-    s.tag_box(base_x + 8, base_y + 18, t["shield_tag"], "shield")
+    s.tag_box(base_x, base_y, base_x + 12.8, base_y - 54.4, t["core_tag"], "core")
+    s.tag_box(base_x, base_y, base_x + 12.8, base_y + 28.8, t["shield_tag"], "shield")
 
     dim_x = base_x + 15
     s.dim_line(dim_x, base_y, dim_x, top_y)
@@ -154,7 +156,7 @@ def _scene_vertical(design: AntennaDesign, units: str, lang: str, margin: float)
     # the core/shield tags next to the feedpoint, at any scale.
     s.balun_box(base_x, base_y, base_x - 190, base_y - 50, design.balun["type"])
 
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -180,8 +182,8 @@ def _scene_horizontal_center_fed(design: AntennaDesign, units: str, lang: str, m
     s.line(left_x, y, center_x, y, width=2, kind="radial")
     s.feed_point(center_x, y)
     s.balun_box(center_x, y, center_x + 70, y - 25, design.balun["type"])
-    s.tag_box(center_x + 8, y + 6, t["core_tag"], "core")
-    s.tag_box(center_x - 70, y + 6, t["shield_tag"], "shield")
+    s.tag_box(center_x, y, center_x + 12.8, y + 9.6, t["core_tag"], "core")
+    s.tag_box(center_x, y, center_x - 112, y + 9.6, t["shield_tag"], "shield")
 
     dim_y = y + 18
     for x0, x1 in [(left_x, center_x), (center_x, right_x)]:
@@ -192,7 +194,7 @@ def _scene_horizontal_center_fed(design: AntennaDesign, units: str, lang: str, m
     s.dim_line(left_x, total_y, right_x, total_y)
     s.text(center_x - 35, total_y + 6, t["total_label"].format(length=_fmt_length(leg_a.length_m + leg_b.length_m, units)), size=9, bold=True)
 
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -217,7 +219,7 @@ def _scene_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, marg
     s.line(feed_x, feed_y, end_x, feed_y, width=2)
     s.feed_point(feed_x, feed_y)
     s.balun_box(feed_x, feed_y, feed_x + 50, feed_y + 28, design.balun["type"])
-    s.tag_box(feed_x + 8, feed_y - 24, t["core_tag"], "core")
+    s.tag_box(feed_x, feed_y, feed_x + 12.8, feed_y - 38.4, t["core_tag"], "core")
 
     dim_y = feed_y - 12
     s.dim_line(feed_x, dim_y, end_x, dim_y)
@@ -225,10 +227,10 @@ def _scene_horizontal_end_fed(design: AntennaDesign, units: str, lang: str, marg
 
     cp_end_y = feed_y + counterpoise_u
     s.line(feed_x, feed_y, feed_x, cp_end_y, width=1, dashed=True, kind="radial")
-    s.tag_box(feed_x + 5, feed_y + 12, t["shield_tag"], "shield")
+    s.tag_box(feed_x, feed_y, feed_x + 8, feed_y + 19.2, t["shield_tag"], "shield")
     s.text(feed_x + 5, cp_end_y, t["counterpoise_label"].format(count=1, length=_fmt_length(counterpoise.length_m, units)))
 
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -263,12 +265,12 @@ def _scene_horizontal_loop(design: AntennaDesign, units: str, lang: str, margin:
     s.line(x0, y0, top_mid_x, y0, width=2, kind="radial")
     s.feed_point(feed_x, feed_y)
     s.balun_box(feed_x, feed_y, feed_x + 55, feed_y - 20, design.balun["type"])
-    s.tag_box(feed_x + 6, feed_y + 10, t["core_tag"], "core")
-    s.tag_box(feed_x - 70, feed_y + 10, t["shield_tag"], "shield")
+    s.tag_box(feed_x, feed_y, feed_x + 9.6, feed_y + 16, t["core_tag"], "core")
+    s.tag_box(feed_x, feed_y, feed_x - 112, feed_y + 16, t["shield_tag"], "shield")
 
     s.text(x0, y0 - 5, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=4))
     s.text(x0, y0 + 10, t["total_label"].format(length=_fmt_length(side_m * 4, units)), bold=True)
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -302,12 +304,12 @@ def _scene_vertical_loop(design: AntennaDesign, units: str, lang: str, margin: f
 
     s.feed_point(feed_x, bottom_y)
     s.balun_box(feed_x, bottom_y, feed_x + 55, bottom_y - 20, design.balun["type"])
-    s.tag_box(feed_x + 6, bottom_y + 10, t["core_tag"], "core")
-    s.tag_box(feed_x - 70, bottom_y + 10, t["shield_tag"], "shield")
+    s.tag_box(feed_x, bottom_y, feed_x + 9.6, bottom_y + 16, t["core_tag"], "core")
+    s.tag_box(feed_x, bottom_y, feed_x - 112, bottom_y + 16, t["shield_tag"], "shield")
 
     s.text(left_x, bottom_y + 10, t["loop_side_label"].format(length=_fmt_length(side_m, units), count=3))
     s.text(left_x, margin / 2, t["total_label"].format(length=_fmt_length(side_m * 3, units)), bold=True)
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -322,11 +324,12 @@ def _scene_inverted_v(design: AntennaDesign, units: str, lang: str, margin: floa
     dx = leg_u * math.cos(math.radians(droop_deg))
     dy = leg_u * math.sin(math.radians(droop_deg))
 
-    width = dx * 2 + margin * 2
+    # Extra width for the apex-height dimension line/label on the right.
+    width = dx * 2 + margin * 2 + 150
     height = dy + margin * 2 + INFO_BLOCK_H
     s = Scene(width, height)
 
-    apex_x = width / 2
+    apex_x = dx + margin
     apex_y = margin
     left_x, left_y = apex_x - dx, apex_y + dy
     right_x, right_y = apex_x + dx, apex_y + dy
@@ -335,12 +338,20 @@ def _scene_inverted_v(design: AntennaDesign, units: str, lang: str, margin: floa
     s.line(apex_x, apex_y, left_x, left_y, width=2, kind="radial")
     s.feed_point(apex_x, apex_y)
     s.balun_box(apex_x, apex_y, apex_x + 65, apex_y + 16, design.balun["type"])
-    s.tag_box(apex_x + 6, apex_y + 30, t["core_tag"], "core")
-    s.tag_box(apex_x - 70, apex_y + 30, t["shield_tag"], "shield")
+    s.tag_box(apex_x, apex_y, apex_x + 9.6, apex_y + 48, t["core_tag"], "core")
+    s.tag_box(apex_x, apex_y, apex_x - 112, apex_y + 48, t["shield_tag"], "shield")
 
     s.text(apex_x + 5, apex_y + dy / 2, t["element_label"].format(length=_fmt_length(leg_a.length_m, units)))
     s.text(margin / 2, margin / 2 + 14, t["total_label"].format(length=_fmt_length(leg_a.length_m + leg_b.length_m, units)), bold=True)
-    _place_info_block(s, t, design, margin, height)
+
+    # Apex height above the (level) leg ends -- the one non-obvious
+    # geometric dimension for this shape, derived from the droop angle.
+    height_m = leg_a.length_m * math.sin(math.radians(droop_deg))
+    dim_x2 = right_x + 20
+    s.dim_line(dim_x2, apex_y, dim_x2, right_y)
+    s.text(dim_x2 + 5, apex_y + dy / 2, t["height_label"].format(length=_fmt_length(height_m, units)), size=8)
+
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -374,7 +385,7 @@ def _scene_horizontal_off_center_fed(design: AntennaDesign, units: str, lang: st
     s.dim_line(left_x, total_y, right_x, total_y)
     s.text((left_x + right_x) / 2 - 30, total_y + 6, t["total_label"].format(length=_fmt_length(short_leg.length_m + long_leg.length_m, units)), bold=True)
 
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -389,7 +400,9 @@ def _scene_j_pole(design: AntennaDesign, units: str, lang: str, margin: float) -
     stub_u = stub.length_m * scale
     gap = 25.0
 
-    width = gap + margin * 2
+    # Extra width -- this shape is naturally just two close vertical lines,
+    # far too narrow on its own to fit the top-right info block's text.
+    width = gap + margin * 2 + 300
     height = radiator_u + margin * 2 + INFO_BLOCK_H
     s = Scene(width, height)
 
@@ -410,7 +423,7 @@ def _scene_j_pole(design: AntennaDesign, units: str, lang: str, margin: float) -
 
     s.text(radiator_x - 22, (base_y + radiator_top_y) / 2, t["element_label"].format(length=_fmt_length(radiator.length_m, units)))
     s.text(stub_x + 5, (base_y + stub_top_y) / 2, t["element_label"].format(length=_fmt_length(stub.length_m, units)))
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -433,11 +446,14 @@ def _scene_yagi(design: AntennaDesign, units: str, lang: str, margin: float) -> 
 
     # Extra width so the director's label (the rightmost element) has room
     # to the right of the boom instead of running off the canvas edge.
+    # Extra top margin so the balun box (drawn above the driven element)
+    # has room clear of the top-right info block.
+    extra_top = 50.0
     width = boom_u + margin * 2 + 90
-    height = max_element_u + margin * 2 + INFO_BLOCK_H
+    height = max_element_u + margin * 2 + INFO_BLOCK_H + extra_top
     s = Scene(width, height)
 
-    boom_y = margin + max_element_u / 2
+    boom_y = margin + extra_top + max_element_u / 2
     reflector_x = margin
     driven_x = margin + reflector_spacing_u
     director_x = driven_x + director_spacing_u
@@ -462,10 +478,10 @@ def _scene_yagi(design: AntennaDesign, units: str, lang: str, margin: float) -> 
 
     s.feed_point(driven_x, boom_y)
     s.balun_box(driven_x, boom_y, driven_x + 50, boom_y - max_element_u / 2 - 20, design.balun["type"])
-    s.tag_box(driven_x + 6, boom_y + 6, t["core_tag"], "core")
-    s.tag_box(driven_x - 70, boom_y + 6, t["shield_tag"], "shield")
+    s.tag_box(driven_x, boom_y, driven_x + 9.6, boom_y + 9.6, t["core_tag"], "core")
+    s.tag_box(driven_x, boom_y, driven_x - 112, boom_y + 9.6, t["shield_tag"], "shield")
     s.text(reflector_x, boom_y + max_element_u / 2 + 12, t["boom_label"].format(length=_fmt_length(boom_m, units)))
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -515,13 +531,13 @@ def _scene_quad(design: AntennaDesign, units: str, lang: str, margin: float) -> 
 
     s.feed_point(feed_x, base_y)
     s.balun_box(feed_x, base_y, feed_x + 50, base_y - 24, design.balun["type"])
-    s.tag_box(feed_x + 6, base_y + 12, t["core_tag"], "core")
-    s.tag_box(feed_x - 70, base_y + 12, t["shield_tag"], "shield")
+    s.tag_box(feed_x, base_y, feed_x + 9.6, base_y + 19.2, t["core_tag"], "core")
+    s.tag_box(feed_x, base_y, feed_x - 112, base_y + 19.2, t["shield_tag"], "shield")
 
     s.text(driven_x0, base_y - driven_side_u - 5, t["loop_side_label"].format(length=_fmt_length(driven_side_m, units), count=4), size=8)
     s.text(reflector_x0, base_y - reflector_side_u - 5, t["reflector_label"].format(length=_fmt_length(reflector.length_m, units)), size=8)
     s.text(reflector_x0, base_y + 12, t["spacing_label"].format(length=_fmt_length(spacing_m, units)))
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -562,13 +578,13 @@ def _scene_moxon(design: AntennaDesign, units: str, lang: str, margin: float) ->
     s.line(right_x, reflector_y, right_x, reflector_tail_y, width=2)
     s.feed_point(feed_x, driven_y)
     s.balun_box(feed_x, driven_y, feed_x + 50, driven_y - 22, design.balun["type"])
-    s.tag_box(feed_x + 6, driven_y + 12, t["core_tag"], "core")
-    s.tag_box(feed_x - 70, driven_y + 12, t["shield_tag"], "shield")
+    s.tag_box(feed_x, driven_y, feed_x + 9.6, driven_y + 19.2, t["core_tag"], "core")
+    s.tag_box(feed_x, driven_y, feed_x - 112, driven_y + 19.2, t["shield_tag"], "shield")
 
     s.text(left_x, driven_y + 10, f"A: {_fmt_length(a_m, units)}", size=8)
     s.text(left_x, (driven_tail_y + reflector_tail_y) / 2,
            f"B: {_fmt_length(b_m, units)}  C: {_fmt_length(c_m, units)}  D: {_fmt_length(d_m, units)}", size=8)
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -598,15 +614,15 @@ def _scene_discone(design: AntennaDesign, units: str, lang: str, margin: float) 
     s.line(center_x - disc_u / 2, disc_y, center_x + disc_u / 2, disc_y, width=2, kind="element")
     s.feed_point(center_x, apex_y)
     s.balun_box(center_x, apex_y, center_x + 60, apex_y + 14, design.balun["type"])
-    s.tag_box(center_x + 6, apex_y - 18, t["core_tag"], "core")
-    s.tag_box(center_x + 6, apex_y + 26, t["shield_tag"], "shield")
+    s.tag_box(center_x, apex_y, center_x + 9.6, apex_y - 28.8, t["core_tag"], "core")
+    s.tag_box(center_x, apex_y, center_x + 9.6, apex_y + 41.6, t["shield_tag"], "shield")
     s.line(center_x, apex_y, center_x - rim_half, rim_y, width=2, kind="radial")
     s.line(center_x, apex_y, center_x + rim_half, rim_y, width=2, kind="radial")
     s.line(center_x - rim_half, rim_y, center_x + rim_half, rim_y, width=1, kind="radial")
 
     s.text(center_x + disc_u / 2 + 5, disc_y + 3, t["disc_label"].format(length=_fmt_length(disc.length_m, units)))
     s.text(center_x + rim_half / 2 + 5, (apex_y + rim_y) / 2, t["cone_label"].format(length=_fmt_length(cone.length_m, units)))
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
@@ -632,7 +648,7 @@ def _scene_vertical_end_fed(design: AntennaDesign, units: str, lang: str, margin
     s.line(base_x, feed_y, base_x, top_y, width=2)
     s.feed_point(base_x, feed_y)
     s.balun_box(base_x, feed_y, base_x - 60, feed_y - 25, design.balun["type"])
-    s.tag_box(base_x + 6, feed_y - 32, t["core_tag"], "core")
+    s.tag_box(base_x, feed_y, base_x + 9.6, feed_y - 51.2, t["core_tag"], "core")
 
     dim_x = base_x + 15
     s.dim_line(dim_x, feed_y, dim_x, top_y)
@@ -640,10 +656,10 @@ def _scene_vertical_end_fed(design: AntennaDesign, units: str, lang: str, margin
 
     cp_end_x = base_x + counterpoise_u
     s.line(base_x, feed_y, cp_end_x, feed_y, width=1, dashed=False, kind="radial")
-    s.tag_box(base_x + 5, feed_y + 14, t["shield_tag"], "shield")
+    s.tag_box(base_x, feed_y, base_x + 8, feed_y + 22.4, t["shield_tag"], "shield")
     s.text(base_x + 5, feed_y + 26, t["counterpoise_label"].format(count=1, length=_fmt_length(counterpoise.length_m, units)))
 
-    _place_info_block(s, t, design, margin, height)
+    _place_info_block(s, t, design, margin)
     return s
 
 
