@@ -59,11 +59,15 @@ and PMR446 -- each band dropdown shows its frequency range.
   matches the HAMIOS look. Antenna type / band / units / language pickers,
   a feed-cable velocity-factor reference table, live calculation, build
   notes, SVG export, and an in-app schematic viewer.
-- **In-app drawing viewer** -- glowing amber schematic on a dark canvas
-  (not to scale), with every element, the balun/unun/choke, the feedpoint,
-  and total antenna length clearly marked.
-- **SVG export** -- black-on-white version of the same schematic, for
-  printing/sharing.
+- **In-app drawing viewer** -- glowing amber schematic on a dark,
+  blueprint-grid canvas (not to scale), with a HUD-style corner frame,
+  ground-hatching symbols, and every element, the balun/unun/choke, the
+  feedpoint, and total antenna length clearly marked. A **2D/3D toggle**
+  in the viewer switches to an isometric 3D rendering of the same design
+  (mast + radial fan in a circle, Yagi boom-and-elements in depth, etc.)
+  for antenna types where a 3D view adds something a flat side-view can't.
+- **SVG export** -- black-on-white version of the 2D schematic (graph-paper
+  grid, rounded component boxes, matching corner frame), for printing/sharing.
 - **CLI** -- `antenna_calc.py`, `build_notes.py`, `drawing.py` all run
   standalone with `<antenna_type> <band> --units --lang`.
 - **EN/NL** -- full bilingual support. Dutch build notes use authentic HAM

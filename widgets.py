@@ -36,8 +36,9 @@ def glow_layers_for(core_color, bg_color):
     line's own width). Shared by the in-app schematic viewer and the
     header logo so both use the exact same glow look."""
     return [
-        (_blend(bg_color, core_color, 0.25), 5.0),
-        (_blend(bg_color, core_color, 0.55), 2.5),
+        (_blend(bg_color, core_color, 0.12), 8.0),
+        (_blend(bg_color, core_color, 0.30), 5.0),
+        (_blend(bg_color, core_color, 0.60), 2.5),
         (core_color, 0.0),
     ]
 
