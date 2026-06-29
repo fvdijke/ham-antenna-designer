@@ -1519,31 +1519,24 @@ HOE TE GEBRUIKEN:
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("Radiation Pattern - " + antenna_type_label(antenna_type, lang))
-            popup.geometry("750x800")
+            popup.geometry("850x900")
             popup.configure(bg=BG)
 
-            # Title frame with info button
-            title_frame = ttk.Frame(popup, style="Panel.TFrame")
-            title_frame.pack(fill="x", padx=10, pady=(10, 5))
-
-            title_label = ttk.Label(title_frame, text="Azimuth Radiation Pattern (Horizontal Plane)",
+            # Title
+            title_label = ttk.Label(popup, text="Azimuth Radiation Pattern (Horizontal Plane)",
                                     style="PanelTitle.TLabel")
-            title_label.pack(anchor="w", side="left")
-
-            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_pattern_info(lang),
-                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
-            info_btn.pack(side="right", padx=5)
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Polar plot canvas
             canvas = tk.Canvas(
-                popup, width=700, height=500, bg=PANEL_BG, highlightthickness=0,
+                popup, width=800, height=450, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
 
             # Draw polar grid and pattern
-            center = (350, 250)
-            radius = 200
+            center = (400, 225)
+            radius = 180
 
             draw_polar_grid(canvas, center, radius, grid_color=AMBER_DIM, text_color=AMBER_DIM)
             plot_azimuth_pattern(canvas, pattern, center, radius, line_color=AMBER,
@@ -1556,7 +1549,7 @@ HOE TE GEBRUIKEN:
 
             # Information panel
             info_frame = ttk.Frame(popup, style="Panel.TFrame")
-            info_frame.pack(fill="x", padx=10, pady=(5, 0))
+            info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
 
             info_text = (
                 f"Gain: {gain_info['gain_dbi']:.1f} dBi  •  "
@@ -1565,12 +1558,33 @@ HOE TE GEBRUIKEN:
             )
 
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
-            info_label.pack(anchor="w", padx=10, pady=10)
+            info_label.pack(anchor="w", padx=10, pady=(5, 5))
+
+            # Explanation text
+            explanation_text = tk.Text(
+                info_frame, height=8, bg=PANEL_BG, fg=FG, font=("Helvetica", 8),
+                relief="flat", borderwidth=0, padx=10, pady=5, wrap="word", highlightthickness=0
+            )
+            explanation_text.pack(fill="both", expand=True)
+
+            explanation = (
+                "RADIATION PATTERN EXPLANATION:\n\n"
+                "• Pattern shows antenna directivity (top view/azimuth)\n"
+                "• Wider lobes = radiation in that direction\n"
+                "• Dipole: Omnidirectional (donut shaped)\n"
+                "• Yagi: Directional with main lobe + side lobes\n"
+                "• Vertical: Omnidirectional for skywave\n"
+                "• F/B Ratio: How much better forward than backward\n"
+                "• Gain (dBi): Power amplification vs isotropic source\n\n"
+                "USE: Understand antenna directivity and coverage area"
+            )
+            explanation_text.insert(1.0, explanation)
+            explanation_text.config(state="disabled")
 
             # Close button
             close_btn = RoundedButton(popup, "Close", popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
-            close_btn.pack(pady=(0, 10))
+            close_btn.pack(pady=(5, 10))
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Pattern error: {str(e)}")
@@ -1932,7 +1946,7 @@ PRAKTISCH GEBRUIK:
 
             # Info panel
             info_frame = ttk.Frame(popup, style="Panel.TFrame")
-            info_frame.pack(fill="x", padx=10, pady=(5, 0))
+            info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
 
             bw_low, bw_high = sweep["bandwidth_3db"]
             bw = bw_high - bw_low
@@ -1943,12 +1957,32 @@ PRAKTISCH GEBRUIK:
             )
 
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
-            info_label.pack(anchor="w", padx=10, pady=10)
+            info_label.pack(anchor="w", padx=10, pady=(5, 5))
+
+            # Explanation text
+            explanation_text = tk.Text(
+                info_frame, height=8, bg=PANEL_BG, fg=FG, font=("Helvetica", 8),
+                relief="flat", borderwidth=0, padx=10, pady=5, wrap="word", highlightthickness=0
+            )
+            explanation_text.pack(fill="both", expand=True)
+
+            explanation = (
+                "SWR SWEEP EXPLANATION:\n\n"
+                "• V-shaped curve shows SWR across the band\n"
+                "• Lowest point = resonance frequency (best match)\n"
+                "• Wider curve base = broader usable bandwidth\n"
+                "• SWR ≤1.5:1 = acceptable for most operations\n"
+                "• Marked point (AMBER) = resonance with minimum SWR\n"
+                "• Bandwidth shows frequency range for SWR ≤1.5:1\n\n"
+                "USE: Find best frequency for operation or antenna tuner needs"
+            )
+            explanation_text.insert(1.0, explanation)
+            explanation_text.config(state="disabled")
 
             # Close button
             close_btn = RoundedButton(popup, "Close", popup.destroy,
-                                     BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
-            close_btn.pack(pady=(0, 10))
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=(5, 10))
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Sweep error: {str(e)}")
