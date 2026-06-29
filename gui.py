@@ -759,25 +759,18 @@ HOE TE GEBRUIKEN:
         try:
             popup = tk.Toplevel(self)
             popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
-            popup.geometry("700x900")
+            popup.geometry("750x900")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
 
-            # Title frame with explanation button
-            title_frame = ttk.Frame(popup, style="Panel.TFrame")
-            title_frame.pack(fill="x", padx=10, pady=(10, 5))
-
-            title_label = ttk.Label(title_frame, text="Smith Chart (50Ω)", style="PanelTitle.TLabel")
-            title_label.pack(anchor="w", side="left")
-
-            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_smith_info(lang),
-                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
-            info_btn.pack(side="right", padx=5)
+            # Title
+            title_label = ttk.Label(popup, text="Smith Chart (50Ω) - Impedance Visualization", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Canvas for Smith Chart
             canvas = tk.Canvas(
-                popup, width=680, height=450, bg=PANEL_BG, highlightthickness=0,
+                popup, width=700, height=380, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
@@ -822,6 +815,37 @@ HOE TE GEBRUIKEN:
             )
             canvas.create_text(center[0], 15, text=info_text, fill=AMBER,
                               font=("Helvetica", 9))
+
+            # Info panel below chart
+            info_frame = ttk.Frame(popup, style="Panel.TFrame")
+            info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 10))
+
+            info_text_widget = tk.Text(
+                info_frame, height=12, bg=PANEL_BG, fg=FG, font=("Helvetica", 8),
+                relief="flat", borderwidth=0, padx=10, pady=10, wrap="word", highlightthickness=0
+            )
+            info_text_widget.pack(fill="both", expand=True)
+
+            explanation = (
+                "SMITH CHART EXPLANATION:\n\n"
+                "• Center point = 50Ω (perfect match, SWR 1:1)\n"
+                "• Your antenna point (AMBER) = your impedance\n"
+                "• Distance from center = mismatch severity\n"
+                "• SWR circle (dashed line) = constant SWR\n"
+                "• Circles = resistance curves\n"
+                "• Arcs = reactance curves\n\n"
+                "INTERPRETATION:\n"
+                "• Closer to center = better match (lower SWR)\n"
+                "• Right side = higher impedance\n"
+                "• Left side = lower impedance\n"
+            )
+            info_text_widget.insert(1.0, explanation)
+            info_text_widget.config(state="disabled")
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=(0, 10))
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
@@ -1847,16 +1871,9 @@ PRAKTISCH GEBRUIK:
 
             lang = self.lang.get()
 
-            # Title frame with info button
-            title_frame = ttk.Frame(popup, style="Panel.TFrame")
-            title_frame.pack(fill="x", padx=10, pady=(10, 5))
-
-            title_label = ttk.Label(title_frame, text="SWR Sweep Analysis", style="PanelTitle.TLabel")
-            title_label.pack(anchor="w", side="left")
-
-            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_swr_info(lang),
-                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
-            info_btn.pack(side="right", padx=5)
+            # Title
+            title_label = ttk.Label(popup, text="SWR Sweep Analysis - Frequency Response", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Canvas for SWR curve
             canvas = tk.Canvas(
