@@ -1,5 +1,8 @@
 # HAM Antenna Designer
 
+<img width="1465" height="1203" alt="HAM Antenna Designer-1" src="https://github.com/user-attachments/assets/e99a0ce6-fe18-4785-8c71-5a798d008be6" />
+
+
 Practical antenna design tool for HAM radio operators and shortwave listeners.
 Pick an antenna type and a band, get element/radial/counterpoise lengths,
 feedpoint impedance, balun/unun/choke advice, plain-language build notes, and
