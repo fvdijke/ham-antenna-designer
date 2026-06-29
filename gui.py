@@ -38,6 +38,9 @@ from smith_chart import (
 from freq_sweep import sweep_antenna_response, calculate_bandwidth
 from radiation_pattern import generate_azimuth_pattern, calculate_gain_description
 from polar_plot import draw_polar_grid, plot_azimuth_pattern
+from transmissionline_loss import (
+    calculate_cable_loss, compare_cables, power_budget_summary, get_all_cable_types
+)
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -398,6 +401,10 @@ class AntennaDesignerApp(tk.Tk):
         self.pattern_btn = RoundedButton(chart_buttons_frame, "View Radiation", self._show_radiation_pattern,
                                         PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.pattern_btn.pack(side="left", padx=5)
+
+        self.loss_btn = RoundedButton(chart_buttons_frame, "Cable Loss", self._show_cable_loss,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.loss_btn.pack(side="left", padx=5)
 
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
@@ -809,6 +816,123 @@ HOE TE GEBRUIKEN:
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+
+    def _show_cable_loss(self):
+        """Open Cable Loss Calculator in popup window."""
+        try:
+            lang = self.lang.get()
+            freq_mhz = float(self.design.design_freq_mhz) if self.design else 14.0
+
+            popup = tk.Toplevel(self)
+            popup.title("Transmission Line Loss Calculator")
+            popup.geometry("800x700")
+            popup.configure(bg=BG)
+
+            # Title
+            title_label = ttk.Label(popup, text="Transmission Line Loss Analysis", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
+
+            # Input frame
+            input_frame = ttk.Frame(popup, style="Panel.TFrame")
+            input_frame.pack(fill="x", padx=10, pady=5)
+
+            # Frequency
+            ttk.Label(input_frame, text="Frequency (MHz):", style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
+            freq_var = tk.StringVar(value=str(freq_mhz))
+            freq_entry = ttk.Entry(input_frame, textvariable=freq_var, width=10)
+            freq_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
+
+            # Distance
+            ttk.Label(input_frame, text="Cable length (meters):", style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
+            dist_var = tk.StringVar(value="30")
+            dist_entry = ttk.Entry(input_frame, textvariable=dist_var, width=10)
+            dist_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
+
+            # Cable type
+            ttk.Label(input_frame, text="Cable type:", style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
+            cable_var = tk.StringVar(value="RG-213")
+            cable_combo = ttk.Combobox(input_frame, textvariable=cable_var,
+                                       values=get_all_cable_types(), width=15, state="readonly")
+            cable_combo.grid(row=2, column=1, sticky="w", padx=5, pady=3)
+
+            # SWR
+            ttk.Label(input_frame, text="Antenna SWR:", style="Panel.TLabel").grid(row=3, column=0, sticky="w", padx=5, pady=3)
+            swr_var = tk.StringVar(value="1.5")
+            swr_entry = ttk.Entry(input_frame, textvariable=swr_var, width=10)
+            swr_entry.grid(row=3, column=1, sticky="w", padx=5, pady=3)
+
+            # Calculate button
+            def calculate_loss():
+                try:
+                    freq = float(freq_var.get())
+                    distance_m = float(dist_var.get())
+                    cable = cable_var.get()
+                    swr = float(swr_var.get())
+
+                    distance_ft = distance_m * 3.28084
+
+                    # Calculate losses
+                    cable_loss = calculate_cable_loss(cable, freq, distance_ft)
+
+                    # SWR loss
+                    if swr > 1.0:
+                        gamma = (swr - 1) / (swr + 1)
+                        swr_loss_db = -10 * __import__('math').log10(1 - gamma**2)
+                    else:
+                        swr_loss_db = 0
+
+                    total_loss = cable_loss + swr_loss_db
+
+                    # Power budget (assume 100W TX)
+                    power_budget = power_budget_summary(100, cable, freq, distance_m, 2.15, swr)
+
+                    # Update info panel
+                    info_text.config(state="normal")
+                    info_text.delete(1.0, tk.END)
+
+                    result_text = (
+                        f"Frequency: {freq} MHz\n"
+                        f"Cable: {cable} ({distance_m}m = {distance_ft:.0f}ft)\n"
+                        f"Antenna SWR: {swr}:1\n\n"
+                        f"LOSSES:\n"
+                        f"  Cable loss: {cable_loss:.2f} dB\n"
+                        f"  SWR loss: {swr_loss_db:.2f} dB\n"
+                        f"  Total loss: {total_loss:.2f} dB\n\n"
+                        f"POWER BUDGET (100W TX):\n"
+                        f"  Power at antenna: {power_budget['power_at_antenna_watts']:.1f}W\n"
+                        f"  Efficiency: {100 - (10**(-total_loss/10))*100:.1f}%\n"
+                        f"  EIRP: {power_budget['eirp_watts']:.2f}W\n"
+                    )
+                    info_text.insert(1.0, result_text)
+                    info_text.config(state="disabled")
+
+                except Exception as e:
+                    info_text.config(state="normal")
+                    info_text.delete(1.0, tk.END)
+                    info_text.insert(1.0, f"Error: {str(e)}")
+                    info_text.config(state="disabled")
+
+            calc_btn = RoundedButton(input_frame, "Calculate", calculate_loss,
+                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            calc_btn.grid(row=4, column=0, columnspan=2, pady=10)
+
+            # Results panel
+            info_text = tk.Text(
+                popup, height=20, bg=PANEL_BG, fg=FG, font=FONT_COURIER,
+                relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+            )
+            info_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=10)
+
+            # Auto-calculate on open
+            calculate_loss()
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Cable Loss error: {str(e)}")
 
     def _show_radiation_pattern(self):
         """Open Radiation Pattern polar plot in popup window."""
