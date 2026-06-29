@@ -30,6 +30,12 @@ from registry import REGISTRY, design as design_antenna
 from settings import load_settings, save_settings
 from widgets import LogoCanvas, RoundedButton, RoundedPanel
 from canvas_view import show_drawing
+from swr_calc import impedance_to_swr_table
+from smith_chart import (
+    draw_smith_chart_grid, plot_impedance_point, plot_swr_circle,
+    complex_to_smith_coords
+)
+from freq_sweep import sweep_antenna_response, calculate_bandwidth
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -107,6 +113,12 @@ UI_TEXT = {
         "custom_freq_hint": "Optional -- overrides the band, calculates for this exact frequency",
         "custom_freq_invalid": "Not a valid frequency -- using the band's default instead",
         "balun_help": "Balun/Unun Guide",
+        "swr": "Matching",
+        "swr_value": "SWR",
+        "return_loss": "Return loss",
+        "power_reflected": "Power reflected",
+        "power_transmitted": "Power transmitted",
+        "gamma": "Reflection coeff.",
     },
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
@@ -132,6 +144,12 @@ UI_TEXT = {
         "custom_freq_hint": "Optioneel -- overschrijft de band, rekent op deze exacte frequentie",
         "custom_freq_invalid": "Geen geldige frequentie -- standaardwaarde van de band gebruikt",
         "balun_help": "Balun/Unun Gids",
+        "swr": "Aanpassing",
+        "swr_value": "SWR",
+        "return_loss": "Return loss",
+        "power_reflected": "Gereflecteerd vermogen",
+        "power_transmitted": "Doorgegeven vermogen",
+        "gamma": "Reflectiecoëff.",
     },
 }
 
@@ -347,6 +365,30 @@ class AntennaDesignerApp(tk.Tk):
         )
         self.results_text.pack(fill="x", padx=12, pady=12)
 
+        # SWR & Matching panel.
+        swr_border, swr_frame = self._make_panel(self)
+        swr_border.pack(fill="x", padx=14, pady=8)
+        self.swr_title = ttk.Label(swr_frame, text=self._t("swr"), style="PanelTitle.TLabel")
+        self.swr_title.pack(anchor="w", padx=12, pady=(12, 0))
+        self.swr_text = tk.Text(
+            swr_frame, height=4, bg=PANEL_BG, fg=FG, insertbackground=AMBER,
+            font=FONT_COURIER, relief="flat", borderwidth=0, padx=10, pady=10,
+            highlightthickness=0,
+        )
+        self.swr_text.pack(fill="x", padx=12, pady=12)
+
+        # Buttons for Smith Chart and Sweep popups
+        chart_buttons_frame = ttk.Frame(self, style="Panel.TFrame")
+        chart_buttons_frame.pack(fill="x", padx=14, pady=8)
+
+        self.smith_btn = RoundedButton(chart_buttons_frame, "View Smith Chart", self._show_smith_chart,
+                                       PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.smith_btn.pack(side="left", padx=5)
+
+        self.sweep_btn = RoundedButton(chart_buttons_frame, "View SWR Sweep", self._show_sweep_window,
+                                       PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.sweep_btn.pack(side="left", padx=5)
+
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
         advice_border.pack(fill="both", expand=True, padx=14, pady=8)
@@ -534,6 +576,7 @@ class AntennaDesignerApp(tk.Tk):
         self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz, wire_vf=wire_vf)
 
         self._set_text_with_hanging_indent(self.results_text, format_summary(self.design, units=units, lang=lang), highlight_title=True)
+        self._update_swr_display(lang)
         self._set_text_with_hanging_indent(self.advice_text, build_advice(self.design, units=units, lang=lang))
 
     def _export_svg(self):
@@ -554,6 +597,195 @@ class AntennaDesignerApp(tk.Tk):
         title = self._t("drawing_window_title").format(label=label, band=self.design.band)
         show_drawing(self, self.design, units=self.units.get(), lang=lang,
                       window_title=title, not_to_scale_note=self._t("not_to_scale"))
+
+    def _update_swr_display(self, lang):
+        """Update SWR & matching display from design impedance."""
+        if not self.design:
+            return
+
+        try:
+            feedpoint_z = float(self.design.feedpoint_impedance_ohms)
+            swr_data = impedance_to_swr_table(feedpoint_z, z0=50)
+
+            # Format SWR display
+            swr_text = (
+                f"{self._t('swr_value')}: {swr_data['swr']}:1\n"
+                f"{self._t('return_loss')}: {swr_data['return_loss_db']} dB\n"
+                f"{self._t('gamma')}: {swr_data['gamma_magnitude']:.4f}\n"
+                f"{self._t('power_reflected')}: {swr_data['power_reflected_percent']}%"
+            )
+
+            self.swr_text.config(state="normal")
+            self.swr_text.delete(1.0, tk.END)
+            self.swr_text.insert(1.0, swr_text)
+            self.swr_text.config(state="disabled")
+        except Exception as e:
+            self.swr_text.config(state="normal")
+            self.swr_text.delete(1.0, tk.END)
+            self.swr_text.insert(1.0, f"Error: {str(e)}")
+            self.swr_text.config(state="disabled")
+
+    def _show_smith_chart(self):
+        """Open Smith Chart in popup window."""
+        if not self.design:
+            messagebox.showwarning(self._t("error"), "Design antenna first")
+            return
+
+        try:
+            popup = tk.Toplevel(self)
+            popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
+            popup.geometry("600x650")
+            popup.configure(bg=BG)
+
+            # Canvas for Smith Chart
+            canvas = tk.Canvas(
+                popup, width=580, height=600, bg=PANEL_BG, highlightthickness=0,
+                relief="flat", borderwidth=0
+            )
+            canvas.pack(padx=10, pady=10)
+
+            # Chart parameters
+            center = (290, 290)
+            radius = 250
+
+            # Draw grid
+            draw_smith_chart_grid(canvas, center, radius, grid_color=AMBER_DIM, line_width=1)
+
+            # Plot antenna impedance
+            feedpoint_z = float(self.design.feedpoint_impedance_ohms)
+            z_complex = complex(feedpoint_z, 0)
+
+            plot_impedance_point(canvas, z_complex, center, radius,
+                                point_color=AMBER, point_size=10)
+
+            # Plot SWR circle
+            swr_data = impedance_to_swr_table(feedpoint_z, z0=50)
+            if swr_data['swr'] > 1.0 and swr_data['swr'] < 999:
+                plot_swr_circle(canvas, swr_data['swr'], center, radius,
+                               circle_color=AMBER, line_width=2)
+
+            # Add labels and info
+            canvas.create_text(center[0], center[1] + radius + 20,
+                              text="Smith Chart (50Ω)", fill=FG,
+                              font=("Helvetica", 10, "bold"))
+
+            info_text = (
+                f"Z = {feedpoint_z:.1f}Ω | "
+                f"SWR = {swr_data['swr']}:1 | "
+                f"Γ = {swr_data['gamma_magnitude']:.3f}"
+            )
+            canvas.create_text(center[0], 15, text=info_text, fill=AMBER,
+                              font=("Helvetica", 9))
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+
+    def _show_sweep_window(self):
+        """Open SWR Sweep in popup window."""
+        if not self.design:
+            messagebox.showwarning(self._t("error"), "Design antenna first")
+            return
+
+        try:
+            antenna_type = self.antenna_type.get()
+            band = self.band.get()
+            wire_vf = wire_velocity_factor(self.antenna_wire.get())
+
+            # Get band frequency range
+            if band not in BANDS_MHZ:
+                messagebox.showwarning(self._t("error"), "Invalid band")
+                return
+
+            freq_range = BANDS_MHZ[band]
+            freq_start = freq_range[0]
+            freq_end = freq_range[1]
+
+            # Perform sweep
+            sweep = sweep_antenna_response(antenna_type, band, freq_start,
+                                          freq_end, step_mhz=0.1, wire_vf=wire_vf)
+
+            if not sweep or "frequencies" not in sweep:
+                messagebox.showwarning(self._t("error"), "Sweep data unavailable")
+                return
+
+            # Create popup
+            popup = tk.Toplevel(self)
+            popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
+            popup.geometry("700x600")
+            popup.configure(bg=BG)
+
+            # Canvas for SWR curve
+            canvas = tk.Canvas(
+                popup, width=680, height=420, bg=PANEL_BG, highlightthickness=0,
+                relief="flat", borderwidth=0
+            )
+            canvas.pack(padx=10, pady=10)
+
+            # Plot SWR curve
+            freqs = sweep["frequencies"]
+            swrs = sweep["swr_values"]
+
+            canvas_w = 680
+            canvas_h = 420
+            margin = 50
+
+            freq_min, freq_max = min(freqs), max(freqs)
+            swr_max = min(max(swrs), 5.0)
+
+            # Draw grid
+            for i in range(0, int(swr_max) + 1):
+                y = canvas_h - margin - (i / swr_max) * (canvas_h - 2 * margin)
+                canvas.create_line(margin, y, canvas_w - margin, y,
+                                  fill=AMBER_DIM, width=0.5, dash=(2, 2))
+                canvas.create_text(15, y, text=str(i), fill=FG,
+                                  font=("Helvetica", 8), anchor="e")
+
+            # Draw axes
+            canvas.create_line(margin, canvas_h - margin, canvas_w - margin,
+                              canvas_h - margin, fill=AMBER, width=2)
+            canvas.create_line(margin, margin, margin, canvas_h - margin,
+                              fill=AMBER, width=2)
+
+            # Axis labels
+            canvas.create_text(canvas_w // 2, canvas_h - 10, text="Frequency (MHz)",
+                              fill=FG, font=("Helvetica", 9))
+            canvas.create_text(15, canvas_h // 2, text="SWR", fill=FG,
+                              font=("Helvetica", 9), angle=90)
+
+            # Plot SWR curve
+            for i in range(len(freqs) - 1):
+                x1 = margin + (freqs[i] - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
+                y1 = canvas_h - margin - min(swrs[i], swr_max) / swr_max * (canvas_h - 2 * margin)
+
+                x2 = margin + (freqs[i + 1] - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
+                y2 = canvas_h - margin - min(swrs[i + 1], swr_max) / swr_max * (canvas_h - 2 * margin)
+
+                canvas.create_line(x1, y1, x2, y2, fill=AMBER, width=2)
+
+            # Mark resonance
+            res_freq = sweep["resonance_freq"]
+            res_x = margin + (res_freq - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
+            res_y = canvas_h - margin - sweep["min_swr"] / swr_max * (canvas_h - 2 * margin)
+            canvas.create_oval(res_x - 4, res_y - 4, res_x + 4, res_y + 4,
+                              fill=AMBER, outline=AMBER)
+
+            # Info panel
+            info_frame = ttk.Frame(popup, style="Panel.TFrame")
+            info_frame.pack(fill="x", padx=10, pady=10)
+
+            bw_low, bw_high = sweep["bandwidth_3db"]
+            bw = bw_high - bw_low
+
+            info_text = (
+                f"Resonance: {res_freq} MHz (SWR {sweep['min_swr']}:1)  •  "
+                f"Bandwidth (SWR ≤1.5): {bw_low}-{bw_high} MHz ({bw:.1f} MHz)"
+            )
+
+            info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
+            info_label.pack(anchor="w", padx=10, pady=10)
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Sweep error: {str(e)}")
 
     def _show_balun_help(self):
         """Show balun/unun construction guide popup."""
