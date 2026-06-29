@@ -833,6 +833,10 @@ HOE TE GEBRUIKEN:
             return
 
         try:
+            from radiation_pattern import calculate_gain_description
+            from swr_calc import impedance_to_swr_table
+            from transmissionline_loss import calculate_cable_loss
+
             lang = self.lang.get()
             units = self.units.get()
 
@@ -869,7 +873,6 @@ HOE TE GEBRUIKEN:
             cable_type = self.feed_cable.get()
 
             # Get design data
-            from radiation_pattern import calculate_gain_description
             gain_info = calculate_gain_description(self.design.antenna_type)
 
             # Bilingual labels
@@ -1041,7 +1044,6 @@ HOE TE GEBRUIKEN:
             )
 
             # SWR info
-            from swr_calc import impedance_to_swr_table
             swr_data = impedance_to_swr_table(float(self.design.feedpoint_impedance_ohms), z0=50)
 
             briefing += (
@@ -1053,7 +1055,6 @@ HOE TE GEBRUIKEN:
             )
 
             # Cable loss estimate
-            from transmissionline_loss import calculate_cable_loss
             cable_loss_30m = calculate_cable_loss(cable_type, freq_mhz, 30 * 3.28084)
 
             briefing += (
@@ -1226,7 +1227,7 @@ HOE TE GEBRUIKEN:
             source_entry = ttk.Entry(input_frame, textvariable=source_var, width=10)
             source_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
 
-            # Load impedance
+            # Load impedance (auto-filled from antenna design)
             ttk.Label(input_frame, text="Load/Antenna (Ohms):", style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
             load_var = tk.StringVar(value=str(antenna_z))
             load_entry = ttk.Entry(input_frame, textvariable=load_var, width=10)
@@ -1355,8 +1356,16 @@ HOE TE GEBRUIKEN:
     def _show_cable_loss(self):
         """Open Cable Loss Calculator in popup window."""
         try:
+            from swr_calc import impedance_to_swr_table
+
             lang = self.lang.get()
             freq_mhz = float(self.design.design_freq_mhz) if self.design else 14.0
+
+            # Auto-fill from design
+            cable_type = self.feed_cable.get()
+            antenna_z = float(self.design.feedpoint_impedance_ohms)
+            swr_data = impedance_to_swr_table(antenna_z, z0=50)
+            swr_value = swr_data['swr']
 
             popup = tk.Toplevel(self)
             popup.title("Transmission Line Loss Calculator")
@@ -1371,7 +1380,7 @@ HOE TE GEBRUIKEN:
             input_frame = ttk.Frame(popup, style="Panel.TFrame")
             input_frame.pack(fill="x", padx=10, pady=5)
 
-            # Frequency
+            # Frequency (auto-filled from design)
             ttk.Label(input_frame, text="Frequency (MHz):", style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
             freq_var = tk.StringVar(value=str(freq_mhz))
             freq_entry = ttk.Entry(input_frame, textvariable=freq_var, width=10)
@@ -1383,16 +1392,16 @@ HOE TE GEBRUIKEN:
             dist_entry = ttk.Entry(input_frame, textvariable=dist_var, width=10)
             dist_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
 
-            # Cable type
+            # Cable type (auto-filled from design)
             ttk.Label(input_frame, text="Cable type:", style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
-            cable_var = tk.StringVar(value="RG-213")
+            cable_var = tk.StringVar(value=cable_type)
             cable_combo = ttk.Combobox(input_frame, textvariable=cable_var,
                                        values=get_all_cable_types(), width=15, state="readonly")
             cable_combo.grid(row=2, column=1, sticky="w", padx=5, pady=3)
 
-            # SWR
+            # SWR (auto-filled from design)
             ttk.Label(input_frame, text="Antenna SWR:", style="Panel.TLabel").grid(row=3, column=0, sticky="w", padx=5, pady=3)
-            swr_var = tk.StringVar(value="1.5")
+            swr_var = tk.StringVar(value=str(swr_value))
             swr_entry = ttk.Entry(input_frame, textvariable=swr_var, width=10)
             swr_entry.grid(row=3, column=1, sticky="w", padx=5, pady=3)
 
