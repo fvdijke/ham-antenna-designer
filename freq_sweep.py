@@ -4,6 +4,7 @@ Sweep antenna impedance over a frequency range to show SWR curve,
 resonance frequency, and bandwidth characteristics.
 """
 
+import calculators  # noqa: F401 -- registers all antenna calculator types
 from registry import design as design_antenna
 from swr_calc import calculate_swr, calculate_return_loss
 
