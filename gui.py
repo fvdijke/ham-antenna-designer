@@ -411,6 +411,10 @@ class AntennaDesignerApp(tk.Tk):
                                       PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.match_btn.pack(side="left", padx=5)
 
+        self.briefing_btn = RoundedButton(chart_buttons_frame, "Final Briefing", self._show_final_briefing,
+                                         PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.briefing_btn.pack(side="left", padx=5)
+
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
         advice_border.pack(fill="both", expand=True, padx=14, pady=8)
@@ -821,6 +825,377 @@ HOE TE GEBRUIKEN:
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+
+    def _show_final_briefing(self):
+        """Show comprehensive final briefing with all design parameters and build instructions."""
+        if not self.design:
+            messagebox.showwarning(self._t("error"), "Design antenna first")
+            return
+
+        try:
+            lang = self.lang.get()
+            units = self.units.get()
+
+            popup = tk.Toplevel(self)
+            popup.title("Final Briefing - Complete Design Summary")
+            popup.geometry("1000x900")
+            popup.configure(bg=BG)
+
+            # Title
+            title_label = ttk.Label(popup, text="FINAL BRIEFING - Design Summary & Build Instructions",
+                                   style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
+
+            # Main text area with scrollbar
+            text_frame = ttk.Frame(popup, style="Panel.TFrame")
+            text_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+            text_widget = tk.Text(
+                text_frame, bg=PANEL_BG, fg=FG, font=FONT_COURIER, wrap="word",
+                relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+            )
+            text_widget.pack(side="left", fill="both", expand=True)
+
+            scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+            scrollbar.pack(side="right", fill="y")
+            text_widget.config(yscrollcommand=scrollbar.set)
+
+            # Build briefing content
+            antenna_label = antenna_type_label(self.antenna_type.get(), lang)
+            band = self.band.get()
+            custom_freq = self.custom_freq_var.get()
+            freq_mhz = self.design.design_freq_mhz
+            wire_type = self.antenna_wire.get()
+            cable_type = self.feed_cable.get()
+
+            # Get design data
+            from radiation_pattern import calculate_gain_description
+            gain_info = calculate_gain_description(self.design.antenna_type)
+
+            # Bilingual labels
+            if lang == "en":
+                title_text = "FINAL BRIEFING - HAM ANTENNA DESIGNER"
+                config_label = "DESIGN CONFIGURATION:"
+                antenna_type_label_txt = "Antenna Type:"
+                band_label_txt = "Band:"
+                freq_label_txt = "Frequency:"
+                wire_label_txt = "Antenna Wire:"
+                cable_label_txt = "Feed Cable:"
+                units_label_txt = "Units:"
+                lang_label_txt = "Language:"
+                spec_label = "ANTENNA SPECIFICATIONS:"
+                length_label = "Element Lengths:"
+                elec_label = "Electrical Characteristics:"
+                feedpoint_label = "Feedpoint Impedance:"
+                gain_label = "Antenna Gain:"
+                fb_label = "Front-to-Back:"
+                toa_label = "Take-off Angle:"
+                matching_label = "Matching Analysis (50Ω line):"
+                swr_label = "SWR:"
+                rl_label = "Return Loss:"
+                pr_label = "Power Reflected:"
+                pt_label = "Power Transmitted:"
+                cable_label_txt2 = "Cable Loss Estimate (30m/98ft):"
+                loss_at_label = "Loss at"
+                balun_label = "Balun/Unun Recommendation:"
+                type_label = "Type:"
+                ratio_label = "Ratio:"
+                location_label = "Location:"
+                build_label = "BUILD INSTRUCTIONS:"
+                checklist_label = "CONSTRUCTION CHECKLIST:"
+                materials_label = "MATERIALS & TOOLS:"
+                assembly_label = "ASSEMBLY STEPS:"
+                safety_label = "SAFETY NOTES:"
+            else:  # Dutch
+                title_text = "FINAAL BRIEFING - HAM ANTENNE ONTWERPER"
+                config_label = "ONTWERP CONFIGURATIE:"
+                antenna_type_label_txt = "Antennetype:"
+                band_label_txt = "Band:"
+                freq_label_txt = "Frequentie:"
+                wire_label_txt = "Antennedraad:"
+                cable_label_txt = "Voedingskabel:"
+                units_label_txt = "Eenheden:"
+                lang_label_txt = "Taal:"
+                spec_label = "ANTENNE SPECIFICATIES:"
+                length_label = "Element Lengtes:"
+                elec_label = "Elektrische Karakteristieken:"
+                feedpoint_label = "Voedingspunt Impedantie:"
+                gain_label = "Antenneversterking:"
+                fb_label = "Voor-naar-Achter:"
+                toa_label = "Straalhhoek:"
+                matching_label = "Aanpassing Analyse (50Ω lijn):"
+                swr_label = "SWR:"
+                rl_label = "Return Loss:"
+                pr_label = "Gereflecteerd Vermogen:"
+                pt_label = "Doorgegeven Vermogen:"
+                cable_label_txt2 = "Kabelverlieschatting (30m/98ft):"
+                loss_at_label = "Verlies bij"
+                balun_label = "Balun/Unun Aanbeveling:"
+                type_label = "Type:"
+                ratio_label = "Verhouding:"
+                location_label = "Locatie:"
+                build_label = "BOUW INSTRUCTIES:"
+                checklist_label = "CONSTRUCTIE CHECKLIST:"
+                materials_label = "MATERIALEN & GEREEDSCHAP:"
+                assembly_label = "MONTAGE STAPPEN:"
+                safety_label = "VEILIGHEIDSNOTEN:"
+
+            briefing = (
+                f"{'='*90}\n"
+                f"{title_text}\n"
+                f"{'='*90}\n\n"
+            )
+
+            briefing += (
+                f"{config_label}\n"
+                f"{'-'*90}\n"
+                f"{antenna_type_label_txt:20s} {antenna_label}\n"
+                f"{band_label_txt:20s} {band}\n"
+                f"{freq_label_txt:20s} {freq_mhz} MHz"
+            )
+
+            if custom_freq:
+                briefing += f" (custom: {custom_freq} MHz)"
+            briefing += "\n"
+
+            briefing += (
+                f"\n{wire_label_txt:20s} {wire_type}\n"
+                f"{cable_label_txt:20s} {cable_type}\n"
+                f"{units_label_txt:20s} {units.upper()}\n"
+                f"{lang_label_txt:20s} {'English' if lang == 'en' else 'Nederlands'}\n\n"
+            )
+
+            # Antenna schema ASCII art
+            briefing += (
+                f"ANTENNA SCHEMA (Simplified):\n"
+                f"{'-'*90}\n"
+            )
+
+            if "vertical" in self.design.antenna_type.lower():
+                briefing += (
+                    f"         Radial\n"
+                    f"    -----┼-----\n"
+                    f"   |     |     |\n"
+                    f"   |   Mast    |\n"
+                    f"   |     |     |\n"
+                    f"    -----⊗----- Feedpoint\n"
+                    f"   |     |     |\n"
+                    f"  Radials (ground plane)\n"
+                )
+            elif "dipole" in self.design.antenna_type.lower():
+                briefing += (
+                    f"      Leg A          Leg B\n"
+                    f"    =========== ⊗ ===========\n"
+                    f"    (Element 1)   (Element 2)\n"
+                    f"                  |\n"
+                    f"              Feedpoint\n"
+                    f"                  |\n"
+                    f"              Feed cable\n"
+                )
+            elif "efhw" in self.design.antenna_type.lower():
+                briefing += (
+                    f"  End (high impedance)\n"
+                    f"         |\n"
+                    f"      ======= Element\n"
+                    f"         |\n"
+                    f"      Unun 9:1\n"
+                    f"         |\n"
+                    f"      Feedpoint (50 Ohms)\n"
+                    f"         |\n"
+                    f"      Feed cable\n"
+                )
+            else:
+                briefing += (
+                    f"   Antenna Structure\n"
+                    f"         |\n"
+                    f"      Feedpoint ⊗\n"
+                    f"         |\n"
+                    f"      Feed cable\n"
+                )
+
+            briefing += "\n"
+
+            # Design parameters
+            briefing += (
+                f"{spec_label}\n"
+                f"{'-'*90}\n"
+            )
+
+            # Element lengths
+            for elem in self.design.elements:
+                if units == "ft":
+                    length = elem.length_ft
+                    unit_str = "ft"
+                else:
+                    length = elem.length_m
+                    unit_str = "m"
+
+                briefing += f"  {elem.name:25s}: {length:8.2f} {unit_str}\n"
+
+            briefing += (
+                f"\n{elec_label}\n"
+                f"  {feedpoint_label:20s} {self.design.feedpoint_impedance_ohms:.1f} Ohms\n"
+                f"  {gain_label:20s} {gain_info['gain_dbi']:.2f} dBi\n"
+                f"  {fb_label:20s} {gain_info['f_b_ratio_db']:.1f} dB\n"
+                f"  {toa_label:20s} {gain_info['takeoff_angle_deg']:.0f}°\n"
+            )
+
+            # SWR info
+            from swr_calc import impedance_to_swr_table
+            swr_data = impedance_to_swr_table(float(self.design.feedpoint_impedance_ohms), z0=50)
+
+            briefing += (
+                f"\n{matching_label}\n"
+                f"  {swr_label:20s} {swr_data['swr']}:1\n"
+                f"  {rl_label:20s} {swr_data['return_loss_db']} dB\n"
+                f"  {pr_label:20s} {swr_data['power_reflected_percent']}%\n"
+                f"  {pt_label:20s} {swr_data['power_transmitted_percent']}%\n"
+            )
+
+            # Cable loss estimate
+            from transmissionline_loss import calculate_cable_loss
+            cable_loss_30m = calculate_cable_loss(cable_type, freq_mhz, 30 * 3.28084)
+
+            briefing += (
+                f"\n{cable_label_txt2}\n"
+                f"  {loss_at_label} {freq_mhz} MHz: {cable_loss_30m} dB (~{100 * (10**(-cable_loss_30m/10)):.0f}W from 100W TX)\n"
+            )
+
+            # Balun info
+            if self.design.balun:
+                briefing += (
+                    f"\n{balun_label}\n"
+                    f"  {type_label:20s} {self.design.balun.get('type', 'N/A')}\n"
+                    f"  {ratio_label:20s} {self.design.balun.get('ratio', 'N/A')}\n"
+                    f"  {location_label:20s} {self.design.balun.get('where', 'Feedpoint')}\n"
+            )
+
+            # Build instructions
+            briefing += (
+                f"\n{'='*90}\n"
+                f"{build_label}\n"
+                f"{'='*90}\n\n"
+            )
+
+            # Get build advice
+            build_notes_text = build_advice(self.design, units=units, lang=lang)
+            briefing += build_notes_text
+
+            if lang == "en":
+                materials_list = (
+                    f"  [ ] Wire: {wire_type}\n"
+                    f"  [ ] Coaxial cable: {cable_type}\n"
+                    f"  [ ] Tape measure or ruler\n"
+                    f"  [ ] Cutting tool (wire cutter)\n"
+                    f"  [ ] Soldering iron (if needed)\n"
+                    f"  [ ] SWR meter or antenna analyzer\n"
+                )
+                assembly_list = (
+                    f"  [ ] Cut all wire elements to calculated lengths (±1%)\n"
+                    f"  [ ] Prepare element supports/insulators\n"
+                    f"  [ ] Assemble antenna structure\n"
+                    f"  [ ] Install feedpoint connector\n"
+                    f"  [ ] Mount balun/unun (if required)\n"
+                    f"  [ ] Connect feed cable\n"
+                    f"  [ ] Test continuity with multimeter\n"
+                    f"  [ ] Install antenna at operating height\n"
+                    f"  [ ] Measure SWR at multiple frequencies\n"
+                    f"  [ ] Document performance baseline\n"
+                    f"  [ ] Make tuning adjustments if needed\n"
+                )
+                safety_list = (
+                    f"  • Ensure antenna is clear of power lines\n"
+                    f"  • Ground antenna mast properly\n"
+                    f"  • Never transmit without proper grounding\n"
+                    f"  • Check RF safety compliance (SAR limits)\n"
+                    f"  • Inspect regularly for weather damage\n"
+                )
+            else:  # Dutch
+                materials_list = (
+                    f"  [ ] Draad: {wire_type}\n"
+                    f"  [ ] Coaxiale kabel: {cable_type}\n"
+                    f"  [ ] Meetlint of liniaal\n"
+                    f"  [ ] Snijgereedschap (draadknipper)\n"
+                    f"  [ ] Soldeerbout (indien nodig)\n"
+                    f"  [ ] SWR-meter of antenne-analyzer\n"
+                )
+                assembly_list = (
+                    f"  [ ] Snij alle draadelementen op berekende lengtes (±1%)\n"
+                    f"  [ ] Bereid element-ondersteuningen/isolatoren voor\n"
+                    f"  [ ] Monteer antennestructuur\n"
+                    f"  [ ] Installeer voedingspunt-connector\n"
+                    f"  [ ] Monteer balun/unun (indien vereist)\n"
+                    f"  [ ] Verbind voedingskabel\n"
+                    f"  [ ] Test continuïteit met multimeter\n"
+                    f"  [ ] Installeer antenne op werkingshoogte\n"
+                    f"  [ ] Meet SWR op meerdere frequenties\n"
+                    f"  [ ] Documenteer basislineprestaties\n"
+                    f"  [ ] Maak afstemmingsaanpassingen indien nodig\n"
+                )
+                safety_list = (
+                    f"  • Zorg dat antenne vrij is van stroomlijnen\n"
+                    f"  • Aarde antennemast correct\n"
+                    f"  • Zend nooit zonder juiste aarding\n"
+                    f"  • Controleer RF-veiligheidsnormen (SAR-limieten)\n"
+                    f"  • Controleer regelmatig op weersscbade\n"
+                )
+
+            briefing += (
+                f"\n{'='*90}\n"
+                f"{checklist_label}\n"
+                f"{'='*90}\n\n"
+                f"{materials_label}\n"
+                f"{materials_list}\n"
+                f"{assembly_label}\n"
+                f"{assembly_list}\n"
+                f"{safety_label}\n"
+                f"{safety_list}\n"
+                f"{'='*90}\n"
+            )
+
+            if lang == "en":
+                briefing += (
+                    f"Design generated by HAM Antenna Designer v2.2\n"
+                    f"Date: 2026-06-29\n"
+                    f"{'='*90}\n"
+                )
+            else:
+                briefing += (
+                    f"Ontwerp gegenereerd door HAM Antenne Ontwerper v2.2\n"
+                    f"Datum: 2026-06-29\n"
+                    f"{'='*90}\n"
+                )
+
+            text_widget.insert(1.0, briefing)
+            text_widget.config(state="disabled")
+
+            # Button frame
+            btn_frame = ttk.Frame(popup, style="Panel.TFrame")
+            btn_frame.pack(fill="x", padx=10, pady=(5, 10))
+
+            # Export button
+            def export_briefing():
+                path = filedialog.asksaveasfilename(
+                    defaultextension=".txt",
+                    filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+                )
+                if path:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        f.write(text_widget.get(1.0, tk.END))
+                    messagebox.showinfo(self._t("window_title"),
+                                       f"Briefing exported to:\n{path}")
+
+            export_btn = RoundedButton(btn_frame, "Export as TXT", export_briefing,
+                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            export_btn.pack(side="left", padx=5)
+
+            # Close button
+            close_btn = RoundedButton(btn_frame, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(side="right", padx=5)
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Briefing error: {str(e)}")
 
     def _show_matching_networks(self):
         """Open Matching Network Calculator in popup window."""
