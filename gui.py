@@ -119,6 +119,8 @@ UI_TEXT = {
         "power_reflected": "Power reflected",
         "power_transmitted": "Power transmitted",
         "gamma": "Reflection coeff.",
+        "swr_explanation_title": "SWR & Impedance Matching Explained",
+        "smith_explanation_title": "Smith Chart Explanation",
     },
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
@@ -150,6 +152,8 @@ UI_TEXT = {
         "power_reflected": "Gereflecteerd vermogen",
         "power_transmitted": "Doorgegeven vermogen",
         "gamma": "Reflectiecoëff.",
+        "swr_explanation_title": "SWR & Impedantie Aanpassing Uitgelegd",
+        "smith_explanation_title": "Smith Chart Uitleg",
     },
 }
 
@@ -625,6 +629,105 @@ class AntennaDesignerApp(tk.Tk):
             self.swr_text.insert(1.0, f"Error: {str(e)}")
             self.swr_text.config(state="disabled")
 
+    def _show_smith_info(self, lang):
+        """Show Smith Chart explanation in popup."""
+        info_text = {
+            "en": """SMITH CHART - EXPLANATION
+
+The Smith Chart is a graphical tool for visualizing complex impedance and
+transmission line calculations. Each point represents an impedance value.
+
+KEY CONCEPTS:
+
+Center Point (middle):
+• Represents 50Ω (perfect match, SWR 1:1)
+• No reflection, 100% power transmitted
+
+Your Antenna Point (AMBER crosshair):
+• Shows your antenna's impedance
+• Distance from center = how far from 50Ω match
+
+Circles on Chart:
+• Horizontal curves = Resistance circles (R = 0.5, 1, 2, 5Ω normalized)
+• Vertical curves = Reactance arcs (X = inductive/capacitive)
+
+SWR Circle (dashed AMBER line):
+• All impedances on this circle have the same SWR
+• Moving along circle changes impedance but keeps SWR constant
+• Closer to center = lower SWR (better match)
+
+INTERPRETATION:
+
+If your point is at center → Perfect 50Ω match (SWR 1:1)
+If your point is far from center → High SWR, antenna mismatch
+If your point is to the right → Higher impedance (inductive)
+If your point is to the left → Lower impedance (capacitive)
+
+HOW TO USE:
+
+1. Check your antenna impedance on the chart
+2. Look at the SWR circle (dashed line around your point)
+3. Use the circle to understand matching network needs
+4. Closer to center always = better match
+""",
+            "nl": """SMITH CHART - UITLEG
+
+De Smith Chart is een grafisch hulpmiddel voor het visualiseren van complexe
+impedantie en transmissielijncalculates. Elk punt vertegenwoordigt een impedantiewaarde.
+
+SLEUTELCONCEPTEN:
+
+Centrumpunt (midden):
+• Vertegenwoordigt 50Ω (perfecte aanpassing, SWR 1:1)
+• Geen reflectie, 100% vermogen doorgestuurd
+
+Uw Antenne Punt (AMBER kruisje):
+• Toont de impedantie van uw antenne
+• Afstand tot centrum = hoe ver van 50Ω aanpassing
+
+Cirkels op kaart:
+• Horizontale curves = Weerstand cirkels (R = 0.5, 1, 2, 5Ω genormaliseerd)
+• Verticale curves = Reactantie bogen (X = inductief/capacitief)
+
+SWR Cirkel (gestippelde AMBER lijn):
+• Alle impedanties op deze cirkel hebben dezelfde SWR
+• Langs de cirkel bewegen verandert impedantie maar houdt SWR gelijk
+• Dichter bij centrum = lagere SWR (betere aanpassing)
+
+INTERPRETATIE:
+
+Als uw punt in het centrum ligt → Perfecte 50Ω aanpassing (SWR 1:1)
+Als uw punt ver van centrum → Hoge SWR, antenne mismatch
+Als uw punt aan de rechterkant → Hogere impedantie (inductief)
+Als uw punt aan de linkerkant → Lagere impedantie (capacitief)
+
+HOE TE GEBRUIKEN:
+
+1. Controleer uw antenneimpedantie op de kaart
+2. Kijk naar de SWR cirkel (gestippelde lijn rond uw punt)
+3. Gebruik de cirkel om matchnetwerk behoeften te begrijpen
+4. Dichter bij centrum is altijd beter
+"""
+        }
+
+        popup = tk.Toplevel(self)
+        popup.title("Smith Chart Explanation")
+        popup.geometry("700x700")
+        popup.configure(bg=BG)
+
+        text_widget = tk.Text(
+            popup, bg=PANEL_BG, fg=FG, font=FONT_COURIER, wrap="word",
+            relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+        )
+        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
+        text_widget.config(state="disabled")
+
+        close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                 PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        close_btn.pack(pady=10)
+
     def _show_smith_chart(self):
         """Open Smith Chart in popup window."""
         if not self.design:
@@ -634,20 +737,36 @@ class AntennaDesignerApp(tk.Tk):
         try:
             popup = tk.Toplevel(self)
             popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
-            popup.geometry("600x680")
+            popup.geometry("700x900")
             popup.configure(bg=BG)
+
+            lang = self.lang.get()
+
+            # Title frame with explanation button
+            title_frame = ttk.Frame(popup, style="Panel.TFrame")
+            title_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+            title_label = ttk.Label(title_frame, text="Smith Chart (50Ω)", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", side="left")
+
+            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_smith_info(lang),
+                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
+            info_btn.pack(side="right", padx=5)
 
             # Canvas for Smith Chart
             canvas = tk.Canvas(
-                popup, width=580, height=600, bg=PANEL_BG, highlightthickness=0,
+                popup, width=680, height=450, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
-            canvas.pack(padx=10, pady=(10, 5))
+            canvas.pack(padx=10, pady=(5, 5))
 
-            # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
-                                     BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
-            close_btn.pack(pady=(5, 10))
+            # Button frame
+            btn_frame = ttk.Frame(popup, style="Panel.TFrame")
+            btn_frame.pack(fill="x", padx=10, pady=(5, 10))
+
+            close_btn = RoundedButton(btn_frame, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack()
 
             # Chart parameters
             center = (290, 290)
@@ -685,6 +804,137 @@ class AntennaDesignerApp(tk.Tk):
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
 
+    def _show_swr_info(self, lang):
+        """Show SWR explanation in popup."""
+        info_text = {
+            "en": """SWR & IMPEDANCE MATCHING - EXPLANATION
+
+SWR (Standing Wave Ratio) measures how well your antenna is matched to your
+transmitter through the 50Ω coaxial cable. Lower SWR is better.
+
+KEY METRICS:
+
+SWR Ratio (e.g., 1.46:1):
+• 1:1 = Perfect match (50Ω antenna on 50Ω cable, ideal)
+• 1.5:1 = Good match (acceptable for most applications)
+• 2:1 = Fair match (some power reflected, acceptable)
+• 3:1 or higher = Poor match (many systems won't transmit)
+
+Return Loss (e.g., 14.56 dB):
+• Measures how much power is reflected back
+• Higher dB value = better match
+• -14 dB return loss = same SWR as 1.46:1
+• -20 dB = very good match (SWR ≤ 1.2:1)
+
+Reflection Coefficient Gamma (Γ):
+• Magnitude between 0 and 1
+• 0 = perfect match (no reflection)
+• 1 = complete mismatch (total reflection)
+• Formula: Γ = (Z - 50) / (Z + 50)
+
+Power Reflected (%):
+• Percentage of transmit power reflected back
+• 3.5% reflected = 96.5% transmitted to antenna
+• Formula: Reflected = |Γ|² × 100
+
+FREQUENCY SWEEP INTERPRETATION:
+
+Resonance Frequency:
+• The frequency where SWR is lowest
+• Best matching point in the band
+• Example: 14.0 MHz for a 20m dipole
+
+Bandwidth:
+• Frequency range where SWR ≤ 1.5:1
+• Wider bandwidth = more usable frequency range
+• Example: 13.8 - 14.4 MHz = 0.6 MHz bandwidth
+
+SWR Curve:
+• Shows how SWR changes across the band
+• V-shaped curve with minimum at resonance
+• Steeper sides = narrower bandwidth
+
+PRACTICAL USE:
+
+• SWR 1:1 to 1.5:1 = No tuner needed
+• SWR 1.5:1 to 2:1 = Tuner recommended
+• SWR above 2:1 = Tuner required or redesign antenna
+• Matching networks (L, T, Pi) can improve SWR at one frequency
+""",
+            "nl": """SWR & IMPEDANTIE AANPASSING - UITLEG
+
+SWR (Staande Golf Verhouding) meet hoe goed uw antenne is aangepast aan uw
+zender via de 50Ω coaxiale kabel. Lagere SWR is beter.
+
+SLEUTELMETRIEKEN:
+
+SWR Verhouding (bijv. 1,46:1):
+• 1:1 = Perfecte aanpassing (50Ω antenne op 50Ω kabel, ideaal)
+• 1,5:1 = Goede aanpassing (acceptabel voor meeste toepassingen)
+• 2:1 = Redelijke aanpassing (enig vermogen gereflecteerd, acceptabel)
+• 3:1 of hoger = Slechte aanpassing (veel systemen zenden niet)
+
+Return Loss (bijv. 14,56 dB):
+• Meet hoeveel vermogen wordt gereflecteerd
+• Hogere dB waarde = betere aanpassing
+• -14 dB return loss = zelfde SWR als 1,46:1
+• -20 dB = zeer goede aanpassing (SWR ≤ 1,2:1)
+
+Reflectiecoëfficiënt Gamma (Γ):
+• Magnitude tussen 0 en 1
+• 0 = perfecte aanpassing (geen reflectie)
+• 1 = volledige mismatch (totale reflectie)
+• Formule: Γ = (Z - 50) / (Z + 50)
+
+Gereflecteerd Vermogen (%):
+• Percentage zendvermogen dat terugkaatst
+• 3,5% gereflecteerd = 96,5% naar antenne
+• Formule: Gereflecteerd = |Γ|² × 100
+
+FREQUENTIE SWEEP INTERPRETATIE:
+
+Resonantiefrequentie:
+• De frequentie waar SWR het laagst is
+• Beste aanpassingspunt in de band
+• Voorbeeld: 14,0 MHz voor een 20m dipole
+
+Bandbreedte:
+• Frequentiebereik waar SWR ≤ 1,5:1
+• Breder bereik = meer bruikbaar frequentiebereik
+• Voorbeeld: 13,8 - 14,4 MHz = 0,6 MHz bandbreedte
+
+SWR Curve:
+• Toont hoe SWR verandert over de band
+• V-vormige curve met minimum bij resonantie
+• Steilere zijkanten = snaller bereik
+
+PRAKTISCH GEBRUIK:
+
+• SWR 1:1 tot 1,5:1 = Geen tuner nodig
+• SWR 1,5:1 tot 2:1 = Tuner aanbevolen
+• SWR hoger dan 2:1 = Tuner vereist of antenne herontwerpen
+• Matchnetwerken (L, T, Pi) kunnen SWR op één frequentie verbeteren
+"""
+        }
+
+        popup = tk.Toplevel(self)
+        popup.title("SWR & Impedance Matching Explanation")
+        popup.geometry("700x800")
+        popup.configure(bg=BG)
+
+        text_widget = tk.Text(
+            popup, bg=PANEL_BG, fg=FG, font=FONT_COURIER, wrap="word",
+            relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+        )
+        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
+        text_widget.config(state="disabled")
+
+        close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                 PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        close_btn.pack(pady=10)
+
     def _show_sweep_window(self):
         """Open SWR Sweep in popup window."""
         if not self.design:
@@ -716,22 +966,35 @@ class AntennaDesignerApp(tk.Tk):
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
-            popup.geometry("700x650")
+            popup.geometry("800x750")
             popup.configure(bg=BG)
+
+            lang = self.lang.get()
+
+            # Title frame with info button
+            title_frame = ttk.Frame(popup, style="Panel.TFrame")
+            title_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+            title_label = ttk.Label(title_frame, text="SWR Sweep Analysis", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", side="left")
+
+            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_swr_info(lang),
+                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
+            info_btn.pack(side="right", padx=5)
 
             # Canvas for SWR curve
             canvas = tk.Canvas(
-                popup, width=680, height=420, bg=PANEL_BG, highlightthickness=0,
+                popup, width=780, height=380, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
-            canvas.pack(padx=10, pady=(10, 5))
+            canvas.pack(padx=10, pady=(5, 5))
 
             # Plot SWR curve
             freqs = sweep["frequencies"]
             swrs = sweep["swr_values"]
 
-            canvas_w = 680
-            canvas_h = 420
+            canvas_w = 780
+            canvas_h = 380
             margin = 50
 
             freq_min, freq_max = min(freqs), max(freqs)
