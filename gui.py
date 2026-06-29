@@ -1102,9 +1102,14 @@ HOE TE GEBRUIKEN:
                 f"{'='*90}\n\n"
             )
 
-            # Get build advice
+            # Get build advice - indent each line for proper formatting
             build_notes_text = build_advice(self.design, units=units, lang=lang)
-            briefing += build_notes_text
+            # Add indent to each line of build notes
+            indented_build_notes = "\n".join(
+                f"  {line}" if line.strip() else ""
+                for line in build_notes_text.split("\n")
+            )
+            briefing += indented_build_notes + "\n"
 
             if lang == "en":
                 materials_list = (
