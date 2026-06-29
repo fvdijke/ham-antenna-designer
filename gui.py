@@ -1102,14 +1102,9 @@ HOE TE GEBRUIKEN:
                 f"{'='*90}\n\n"
             )
 
-            # Get build advice - preserve existing indentation for continuation lines
+            # Get build advice - add with consistent formatting
             build_notes_text = build_advice(self.design, units=units, lang=lang)
-            # Add indent only to lines that don't already start with spaces
-            indented_build_notes = "\n".join(
-                f"  {line}" if line and not line[0].isspace() else line
-                for line in build_notes_text.split("\n")
-            )
-            briefing += indented_build_notes + "\n"
+            briefing += build_notes_text + "\n"
 
             if lang == "en":
                 materials_list = (
