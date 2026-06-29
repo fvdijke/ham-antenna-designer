@@ -759,7 +759,7 @@ HOE TE GEBRUIKEN:
         try:
             popup = tk.Toplevel(self)
             popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
-            popup.geometry("900x950")
+            popup.geometry("800x800")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
@@ -770,7 +770,7 @@ HOE TE GEBRUIKEN:
 
             # Canvas for Smith Chart
             canvas = tk.Canvas(
-                popup, width=850, height=450, bg=PANEL_BG, highlightthickness=0,
+                popup, width=750, height=380, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
@@ -784,8 +784,8 @@ HOE TE GEBRUIKEN:
             close_btn.pack()
 
             # Chart parameters
-            center = (425, 225)
-            radius = 180
+            center = (375, 190)
+            radius = 160
 
             # Draw grid
             draw_smith_chart_grid(canvas, center, radius, grid_color=AMBER_DIM, line_width=1)
@@ -1519,7 +1519,7 @@ HOE TE GEBRUIKEN:
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("Radiation Pattern - " + antenna_type_label(antenna_type, lang))
-            popup.geometry("850x900")
+            popup.geometry("800x850")
             popup.configure(bg=BG)
 
             # Title
@@ -1529,14 +1529,14 @@ HOE TE GEBRUIKEN:
 
             # Polar plot canvas
             canvas = tk.Canvas(
-                popup, width=800, height=450, bg=PANEL_BG, highlightthickness=0,
+                popup, width=750, height=380, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
 
             # Draw polar grid and pattern
-            center = (400, 225)
-            radius = 180
+            center = (375, 190)
+            radius = 160
 
             draw_polar_grid(canvas, center, radius, grid_color=AMBER_DIM, text_color=AMBER_DIM)
             plot_azimuth_pattern(canvas, pattern, center, radius, line_color=AMBER,
@@ -1880,7 +1880,7 @@ PRAKTISCH GEBRUIK:
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
-            popup.geometry("950x800")
+            popup.geometry("850x750")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
@@ -1891,7 +1891,7 @@ PRAKTISCH GEBRUIK:
 
             # Canvas for SWR curve
             canvas = tk.Canvas(
-                popup, width=900, height=420, bg=PANEL_BG, highlightthickness=0,
+                popup, width=800, height=380, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
@@ -1900,8 +1900,8 @@ PRAKTISCH GEBRUIK:
             freqs = sweep["frequencies"]
             swrs = sweep["swr_values"]
 
-            canvas_w = 900
-            canvas_h = 420
+            canvas_w = 800
+            canvas_h = 380
             margin = 50
 
             freq_min, freq_max = min(freqs), max(freqs)
