@@ -36,6 +36,8 @@ from smith_chart import (
     complex_to_smith_coords
 )
 from freq_sweep import sweep_antenna_response, calculate_bandwidth
+from radiation_pattern import generate_azimuth_pattern, calculate_gain_description
+from polar_plot import draw_polar_grid, plot_azimuth_pattern
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -392,6 +394,10 @@ class AntennaDesignerApp(tk.Tk):
         self.sweep_btn = RoundedButton(chart_buttons_frame, "View SWR Sweep", self._show_sweep_window,
                                        PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.sweep_btn.pack(side="left", padx=5)
+
+        self.pattern_btn = RoundedButton(chart_buttons_frame, "View Radiation", self._show_radiation_pattern,
+                                        PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.pattern_btn.pack(side="left", padx=5)
 
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
@@ -803,6 +809,208 @@ HOE TE GEBRUIKEN:
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+
+    def _show_radiation_pattern(self):
+        """Open Radiation Pattern polar plot in popup window."""
+        if not self.design:
+            messagebox.showwarning(self._t("error"), "Design antenna first")
+            return
+
+        try:
+            antenna_type = self.design.antenna_type
+            lang = self.lang.get()
+
+            # Generate radiation pattern
+            pattern = generate_azimuth_pattern(antenna_type)
+            gain_info = calculate_gain_description(antenna_type)
+
+            # Create popup
+            popup = tk.Toplevel(self)
+            popup.title("Radiation Pattern - " + antenna_type_label(antenna_type, lang))
+            popup.geometry("750x800")
+            popup.configure(bg=BG)
+
+            # Title frame with info button
+            title_frame = ttk.Frame(popup, style="Panel.TFrame")
+            title_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+            title_label = ttk.Label(title_frame, text="Azimuth Radiation Pattern (Horizontal Plane)",
+                                    style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", side="left")
+
+            info_btn = RoundedButton(title_frame, "? Info", lambda: self._show_pattern_info(lang),
+                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 7, "bold"))
+            info_btn.pack(side="right", padx=5)
+
+            # Polar plot canvas
+            canvas = tk.Canvas(
+                popup, width=700, height=500, bg=PANEL_BG, highlightthickness=0,
+                relief="flat", borderwidth=0
+            )
+            canvas.pack(padx=10, pady=(5, 5))
+
+            # Draw polar grid and pattern
+            center = (350, 250)
+            radius = 200
+
+            draw_polar_grid(canvas, center, radius, grid_color=AMBER_DIM, text_color=AMBER_DIM)
+            plot_azimuth_pattern(canvas, pattern, center, radius, line_color=AMBER,
+                                line_width=2, fill_color=None)
+
+            # Add antenna label
+            canvas.create_text(center[0], center[1] + radius + 25,
+                              text="Azimuth Pattern (Top View)", fill=FG,
+                              font=("Helvetica", 9, "bold"))
+
+            # Information panel
+            info_frame = ttk.Frame(popup, style="Panel.TFrame")
+            info_frame.pack(fill="x", padx=10, pady=(5, 0))
+
+            info_text = (
+                f"Gain: {gain_info['gain_dbi']:.1f} dBi  •  "
+                f"F/B Ratio: {gain_info['f_b_ratio_db']:.1f} dB  •  "
+                f"Take-off: {gain_info['takeoff_angle_deg']:.0f}°"
+            )
+
+            info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
+            info_label.pack(anchor="w", padx=10, pady=10)
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=(0, 10))
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Pattern error: {str(e)}")
+
+    def _show_pattern_info(self, lang):
+        """Show Radiation Pattern explanation."""
+        info_text = {
+            "en": """RADIATION PATTERN - EXPLANATION
+
+The radiation pattern shows how an antenna radiates energy in different
+directions. The plot is viewed from above (azimuth/horizontal plane).
+
+KEY CONCEPTS:
+
+Distance from Center:
+• Shows antenna directivity and gain
+• Farther from center = stronger radiation in that direction
+• Closer to center = weaker radiation
+
+Polar Grid:
+• Center = 0 dBi reference (isotropic)
+• Circles = 3dB, 6dB, 10dB power loss
+• Radial lines = compass directions (0°, 45°, 90°, ...)
+
+Pattern Shape:
+
+Circular (Omnidirectional):
+• Dipole, vertical radiates equally in all directions
+• No preferred azimuth direction
+• 0 dB Front-to-Back ratio
+
+Cardioid/Directional:
+• Yagi, loop, end-fire antennas
+• Stronger in forward direction, weaker in back
+• High Front-to-Back ratio
+
+Antenna Specifications:
+
+Gain (dBi):
+• Relative to isotropic radiator
+• Higher gain = more concentrated energy
+• Dipole = 2.15 dBi (0 dBd reference)
+
+F/B Ratio (Front-to-Back):
+• How much stronger forward than backward
+• Higher = more directional
+• 0 dB = omnidirectional, 15 dB = very directional
+
+Take-off Angle:
+• Radiation angle from horizontal
+• Low (10-20°) = better for DX
+• High (40-60°) = better for local
+
+PRACTICAL USE:
+
+1. Look at pattern shape to understand directivity
+2. Check gain for power and signal strength
+3. Use F/B ratio to reject unwanted directions
+4. Adjust antenna orientation for best coverage
+""",
+            "nl": """STRALINGSPATROON - UITLEG
+
+Het stralingspatroon toont hoe een antenne energie in verschillende richtingen
+uitstraalt. De plot wordt van bovenaf bekeken (azimut/horizontaal vlak).
+
+SLEUTELCONCEPTEN:
+
+Afstand tot Centrum:
+• Toont antennegerichtheid en versterking
+• Verder van centrum = sterkere straling in die richting
+• Dichter bij centrum = zwakkere straling
+
+Polaire Raster:
+• Centrum = 0 dBi referentie (isotroop)
+• Cirkels = 3dB, 6dB, 10dB vermogensverlies
+• Radiale lijnen = kompasrichtingen (0°, 45°, 90°, ...)
+
+Patroonvorm:
+
+Circulair (Omnidirectionaal):
+• Dipole, verticale stralen gelijk in alle richtingen
+• Geen voorkeur richting
+• 0 dB Voor-naar-Achter verhouding
+
+Cardioid/Gericht:
+• Yagi, loop, end-fire antennes
+• Sterker vooruit, zwakker achter
+• Hoge Voor-naar-Achter verhouding
+
+Antenne Specificaties:
+
+Versterking (dBi):
+• Relatief tot isotroop radiator
+• Hogere versterking = meer geconcentreerde energie
+• Dipole = 2.15 dBi (0 dBd referentie)
+
+V/A Verhouding (Voor-naar-Achter):
+• Hoeveel sterker vooruit dan achter
+• Hoger = directer gericht
+• 0 dB = omnidirectionaal, 15 dB = zeer gericht
+
+Straalhhoek:
+• Stralingshoek vanaf horizontaal
+• Laag (10-20°) = beter voor DX
+• Hoog (40-60°) = beter voor lokaal
+
+PRAKTISCH GEBRUIK:
+
+1. Kijk naar patroonvorm om gerichte werking te begrijpen
+2. Controleer versterking voor vermogen en signaalsterkte
+3. Gebruik V/A verhouding om ongewenste richtingen af te wijzen
+4. Pas antenneoriëntatie aan voor beste dekking
+"""
+        }
+
+        popup = tk.Toplevel(self)
+        popup.title("Radiation Pattern Explanation")
+        popup.geometry("700x800")
+        popup.configure(bg=BG)
+
+        text_widget = tk.Text(
+            popup, bg=PANEL_BG, fg=FG, font=FONT_COURIER, wrap="word",
+            relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+        )
+        text_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
+        text_widget.config(state="disabled")
+
+        close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                 PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        close_btn.pack(pady=10)
 
     def _show_swr_info(self, lang):
         """Show SWR explanation in popup."""
