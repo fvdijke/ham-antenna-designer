@@ -611,11 +611,7 @@ BUILD_NOTES = {
             "   and the coax shield / radials to a common ground point. Expect ~{ohms} ohms\n"
             "   feedpoint impedance under ideal conditions -- real-world radial count/soil will shift this some."
         ),
-        "step4": (
-            "4. Common-mode choke: wind {choke},\n"
-            "   placed right at the feedpoint before the coax run back to the radio.\n"
-            "   ({balun_type}, {balun_ratio} -- {balun_why}.)"
-        ),
+        "step4": "4. Common-mode choke: wind {choke} -- placed right at the feedpoint before the coax run back to the radio. ({balun_type}, {balun_ratio} -- {balun_why}.)",
         "step5": (
             "5. Weatherproofing: seal the feedpoint connections (self-amalgamating tape over\n"
             "   coax connectors) before the first rain -- this is the #1 cause of intermittent SWR issues."
