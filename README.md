@@ -96,6 +96,13 @@ and PMR446 -- each band dropdown shows its frequency range.
 
 ## Running it
 
+### Quick Start (Recommended)
+**Windows:** Download and run the standalone executable
+- Get **HAM_Antenna_Designer.exe** from [Latest Release](https://github.com/fvdijke/ham-antenna-designer/releases/latest)
+- Double-click the `.exe` file -- no Python installation needed
+- All dependencies are bundled; just run and go
+
+### From Source (Python Required)
 **Windows:**
 - Double-click **"Start HAM Antenna Designer.bat"** (or `.ps1` for PowerShell)
 - Or from command prompt:
