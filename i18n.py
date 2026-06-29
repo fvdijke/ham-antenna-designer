@@ -539,7 +539,7 @@ BUILD_NOTES_LONGWIRE = {
     },
     "nl": {
         "title": "Bouwnotities -- {band} longwire receive-antenne (SWL)",
-        "warning": "LET OP: dit is een receive-only, expres niet-resonant ontwerp -- er is geen \"juiste\"\n   lengte zoals bij een transmit-antenne. {length} is een praktisch MINIMUM (een quarter-wave\n   bodemwaarde op de onderkant van de band); langer is over het algemeen beter voor lage-frequentie\n   gevoeligheid. Is {length} onpraktisch voor je locatie (gebruikelijk op LW/MW), gebruik dan wat\n   de ruimte toelaat -- een kortere draad werkt nog steeds, alleen met minder respons onderin.",
+        "warning": "LET OP: dit is een receive-only, expres niet-resonant ontwerp -- er is geen \"juiste\"\n     lengte zoals bij een transmit-antenne. {length} is een praktisch MINIMUM (een quarter-wave\n   bodemwaarde op de onderkant van de band); langer is over het algemeen beter voor lage-frequentie\n   gevoeligheid. Is {length} onpraktisch voor je locatie (gebruikelijk op LW/MW), gebruik dan wat\n   de ruimte toelaat -- een kortere draad werkt nog steeds, alleen met minder respons onderin.",
         "step1": "1. Span een draad van minstens {length} lang, zo hoog en zo vrij van gebouwen/stroomkabels als praktisch.\n   Recht is ideaal maar niet vereist -- een gebogen of hellende loop werkt ook voor ontvangst.",
         "step2": "2. Span een counterpoise/aarddraad van ongeveer {length_cp} vanaf de aardlip van de unun, of gebruik\n   een echte aardpin/koudwaterleiding-aarde als die beschikbaar is -- beide geven de unun een retourpad.",
         "step3": "3. Voedingspunt: verbind het verre (hoge-impedantie) einde van de draad en de counterpoise met de unun.\n   Verwacht ruwweg ~{ohms} ohm op dit punt voordat de unun dit omlaag transformeert voor de ontvanger.",
@@ -613,8 +613,8 @@ BUILD_NOTES = {
         ),
         "step4": (
             "4. Common-mode choke: wind {choke},\n"
-            "   placed right at the feedpoint before the coax run back to the radio.\n"
-            "   ({balun_type}, {balun_ratio} -- {balun_why}.)"
+            "     placed right at the feedpoint before the coax run back to the radio.\n"
+            "     ({balun_type}, {balun_ratio} -- {balun_why}.)"
         ),
         "step5": (
             "5. Weatherproofing: seal the feedpoint connections (self-amalgamating tape over\n"
