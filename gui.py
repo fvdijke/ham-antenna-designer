@@ -41,6 +41,7 @@ from polar_plot import draw_polar_grid, plot_azimuth_pattern
 from transmissionline_loss import (
     calculate_cable_loss, compare_cables, power_budget_summary, get_all_cable_types
 )
+from matching_networks import suggest_matching_network, calculate_swr_from_impedance
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -405,6 +406,10 @@ class AntennaDesignerApp(tk.Tk):
         self.loss_btn = RoundedButton(chart_buttons_frame, "Cable Loss", self._show_cable_loss,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.loss_btn.pack(side="left", padx=5)
+
+        self.match_btn = RoundedButton(chart_buttons_frame, "Matching", self._show_matching_networks,
+                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.match_btn.pack(side="left", padx=5)
 
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
@@ -816,6 +821,161 @@ HOE TE GEBRUIKEN:
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+
+    def _show_matching_networks(self):
+        """Open Matching Network Calculator in popup window."""
+        if not self.design:
+            messagebox.showwarning(self._t("error"), "Design antenna first")
+            return
+
+        try:
+            freq_mhz = float(self.design.design_freq_mhz) if self.design else 14.0
+            antenna_z = float(self.design.feedpoint_impedance_ohms)
+
+            popup = tk.Toplevel(self)
+            popup.title("Impedance Matching Network Calculator")
+            popup.geometry("900x850")
+            popup.configure(bg=BG)
+
+            # Title
+            title_label = ttk.Label(popup, text="Matching Network Design", style="PanelTitle.TLabel")
+            title_label.pack(anchor="w", padx=10, pady=(10, 5))
+
+            # Input frame
+            input_frame = ttk.Frame(popup, style="Panel.TFrame")
+            input_frame.pack(fill="x", padx=10, pady=5)
+
+            # Source impedance
+            ttk.Label(input_frame, text="Source (Ohms):", style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
+            source_var = tk.StringVar(value="50")
+            source_entry = ttk.Entry(input_frame, textvariable=source_var, width=10)
+            source_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
+
+            # Load impedance
+            ttk.Label(input_frame, text="Load/Antenna (Ohms):", style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
+            load_var = tk.StringVar(value=str(antenna_z))
+            load_entry = ttk.Entry(input_frame, textvariable=load_var, width=10)
+            load_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
+
+            # Frequency
+            ttk.Label(input_frame, text="Frequency (MHz):", style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
+            freq_var = tk.StringVar(value=str(freq_mhz))
+            freq_entry = ttk.Entry(input_frame, textvariable=freq_var, width=10)
+            freq_entry.grid(row=2, column=1, sticky="w", padx=5, pady=3)
+
+            # Calculate button
+            def calculate_networks():
+                try:
+                    source = float(source_var.get())
+                    load = float(load_var.get())
+                    freq = float(freq_var.get())
+
+                    if source <= 0 or load <= 0 or freq <= 0:
+                        raise ValueError("All values must be positive")
+
+                    # Calculate SWR before matching
+                    swr_before = calculate_swr_from_impedance(load, source)
+
+                    # Get matching network suggestions
+                    networks = suggest_matching_network(source, load, freq)
+
+                    # Update display
+                    info_text.config(state="normal")
+                    info_text.delete(1.0, tk.END)
+
+                    result = (
+                        f"IMPEDANCE MATCHING NETWORK DESIGN\n"
+                        f"{'='*60}\n"
+                        f"Source impedance: {source} Ohms\n"
+                        f"Load impedance: {load} Ohms\n"
+                        f"Frequency: {freq} MHz\n"
+                        f"SWR (before matching): {swr_before}:1\n\n"
+                    )
+
+                    for i, net in enumerate(networks, 1):
+                        result += f"\nOPTION {i}: {net['type']}\n"
+                        result += f"{'-'*60}\n"
+                        result += f"Topology: {net['topology']}\n"
+                        result += f"Quality Factor (Q): {net['quality_factor']}\n"
+                        result += f"Description: {net['description']}\n"
+
+                        if net['type'] == 'L-Low':
+                            result += f"\nComponent Values:\n"
+                            result += f"  Series Inductor: {net['l_series_uh']} µH\n"
+                            result += f"  Shunt Capacitor: {net['c_shunt_pf']} pF\n"
+                        elif net['type'] == 'L-High':
+                            result += f"\nComponent Values:\n"
+                            result += f"  Shunt Inductor: {net['l_shunt_uh']} µH\n"
+                            result += f"  Series Capacitor: {net['c_series_pf']} pF\n"
+                        elif net['type'] == 'T-Network':
+                            result += f"\nComponent Values:\n"
+                            result += f"  Shunt Inductor 1: {net['l1_shunt_uh']} µH\n"
+                            result += f"  Series Capacitor: {net['c_series_pf']} pF\n"
+                            result += f"  Shunt Inductor 2: {net['l2_shunt_uh']} µH\n"
+                            result += f"  Impedance (midpoint): {net['z_mid_ohm']} Ohms\n"
+                        elif net['type'] == 'Pi-Network':
+                            result += f"\nComponent Values:\n"
+                            result += f"  Shunt Capacitor 1: {net['c1_shunt_pf']} pF\n"
+                            result += f"  Series Inductor: {net['l_series_uh']} µH\n"
+                            result += f"  Shunt Capacitor 2: {net['c2_shunt_pf']} pF\n"
+                            result += f"  Impedance (midpoint): {net['z_mid_ohm']} Ohms\n"
+
+                        result += f"\nCharacteristics:\n"
+                        if net['type'] == 'L-Low' or net['type'] == 'L-High':
+                            result += f"  • Simplest design (2 components)\n"
+                            result += f"  • Narrowest bandwidth (high Q)\n"
+                            result += f"  • Good for single-frequency matching\n"
+                        elif net['type'] == 'T-Network':
+                            result += f"  • Moderate complexity (3 components)\n"
+                            result += f"  • Medium bandwidth (lower Q than L-network)\n"
+                            result += f"  • Better impedance transformation\n"
+                        elif net['type'] == 'Pi-Network':
+                            result += f"  • Moderate complexity (3 components)\n"
+                            result += f"  • Good filtering properties\n"
+                            result += f"  • Variable capacitors allow adjustment\n"
+                            result += f"  • Popular in amateur radio tuners\n"
+
+                    result += (
+                        f"\n{'='*60}\n"
+                        f"NOTES:\n"
+                        f"  • Use standard component values nearest calculated values\n"
+                        f"  • All inductors should be wound on appropriate cores\n"
+                        f"  • Capacitors must handle expected power levels\n"
+                        f"  • L-networks have narrowest bandwidth\n"
+                        f"  • T/Pi networks provide better bandwidth\n"
+                        f"  • After matching, antenna SWR should approach 1:1\n"
+                    )
+
+                    info_text.insert(1.0, result)
+                    info_text.config(state="disabled")
+
+                except Exception as e:
+                    info_text.config(state="normal")
+                    info_text.delete(1.0, tk.END)
+                    info_text.insert(1.0, f"Error: {str(e)}")
+                    info_text.config(state="disabled")
+
+            calc_btn = RoundedButton(input_frame, "Calculate", calculate_networks,
+                                    PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            calc_btn.grid(row=3, column=0, columnspan=2, pady=10)
+
+            # Results panel
+            info_text = tk.Text(
+                popup, height=30, bg=PANEL_BG, fg=FG, font=FONT_COURIER,
+                relief="flat", borderwidth=0, padx=15, pady=15, highlightthickness=0
+            )
+            info_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=10)
+
+            # Auto-calculate on open
+            calculate_networks()
+
+        except Exception as e:
+            messagebox.showerror(self._t("error"), f"Matching network error: {str(e)}")
 
     def _show_cable_loss(self):
         """Open Cable Loss Calculator in popup window."""
