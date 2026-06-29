@@ -891,7 +891,7 @@ HOE TE GEBRUIKEN:
             # Build briefing content
             antenna_label = antenna_type_label(self.antenna_type.get(), lang)
             band = self.band.get()
-            custom_freq = self.custom_freq_var.get()
+            custom_freq = self.custom_freq_entry.get() if hasattr(self, 'custom_freq_entry') else ""
             freq_mhz = self.design.design_freq_mhz
             wire_type = self.antenna_wire.get()
             cable_type = self.feed_cable.get()
