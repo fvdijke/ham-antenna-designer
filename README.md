@@ -60,11 +60,36 @@ and PMR446 -- each band dropdown shows its frequency range.
 
 ## Features
 
+### v2.2.0 - Comprehensive Analysis Suite
+
+- **SWR & Impedance Matching** (4 phases)
+  - SWR Calculator with Smith Chart visualization
+  - Frequency sweep analysis with bandwidth detection
+  - Matching network designer (L, T, Pi networks with component values)
+  - Auto-calculated reflection coefficient & return loss
+  
+- **Radiation Pattern Visualization**
+  - Azimuth polar diagram with antenna pattern
+  - Gain (dBi), Front-to-Back ratio, take-off angle
+  - Pattern visualization for all antenna types
+  
+- **Transmission Line Loss Calculator**
+  - 9+ cable types (RG, LMR, Heliax, specialty cables)
+  - Power budget analysis & efficiency ratings
+  - Cable loss over distance (1.8 MHz - 432 MHz)
+  
+- **Final Briefing Report**
+  - Complete design summary with antenna schema (ASCII art)
+  - Step-by-step build instructions
+  - Construction checklist with materials & safety notes
+  - Bilingual (English/Dutch)
+  - Export to TXT file
+
 - **GUI** (`gui.py`) -- dark background, amber accents, rounded panels,
   matches the HAMIOS look. Antenna type / band / units / language pickers,
   antenna wire and feed-cable velocity-factor selectors with 22 wire types
   and 44 cable types, live dynamic calculation, build notes, SVG export, and
-  an in-app schematic viewer.
+  comprehensive analysis tools.
 - **Antenna Wire Selection** -- 22 wire types (bare copper, Litz, PVC, 
   Silicone, PTFE, DX-Wire, Copperweld, CAT5/6, etc.) with velocity factors
   (0.95-0.98). Wire VF is integrated into all antenna calculations to match
