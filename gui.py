@@ -634,7 +634,7 @@ class AntennaDesignerApp(tk.Tk):
         try:
             popup = tk.Toplevel(self)
             popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
-            popup.geometry("600x650")
+            popup.geometry("600x680")
             popup.configure(bg=BG)
 
             # Canvas for Smith Chart
@@ -642,7 +642,12 @@ class AntennaDesignerApp(tk.Tk):
                 popup, width=580, height=600, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
-            canvas.pack(padx=10, pady=10)
+            canvas.pack(padx=10, pady=(10, 5))
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=(5, 10))
 
             # Chart parameters
             center = (290, 290)
@@ -711,7 +716,7 @@ class AntennaDesignerApp(tk.Tk):
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
-            popup.geometry("700x600")
+            popup.geometry("700x650")
             popup.configure(bg=BG)
 
             # Canvas for SWR curve
@@ -719,7 +724,7 @@ class AntennaDesignerApp(tk.Tk):
                 popup, width=680, height=420, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
-            canvas.pack(padx=10, pady=10)
+            canvas.pack(padx=10, pady=(10, 5))
 
             # Plot SWR curve
             freqs = sweep["frequencies"]
@@ -771,7 +776,7 @@ class AntennaDesignerApp(tk.Tk):
 
             # Info panel
             info_frame = ttk.Frame(popup, style="Panel.TFrame")
-            info_frame.pack(fill="x", padx=10, pady=10)
+            info_frame.pack(fill="x", padx=10, pady=(5, 0))
 
             bw_low, bw_high = sweep["bandwidth_3db"]
             bw = bw_high - bw_low
@@ -783,6 +788,11 @@ class AntennaDesignerApp(tk.Tk):
 
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
             info_label.pack(anchor="w", padx=10, pady=10)
+
+            # Close button
+            close_btn = RoundedButton(popup, "Close", popup.destroy,
+                                     BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+            close_btn.pack(pady=(0, 10))
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"Sweep error: {str(e)}")
