@@ -1,5 +1,8 @@
 # HAM Antenna Designer
 
+<img width="1465" height="1203" alt="HAM Antenna Designer-1" src="https://github.com/user-attachments/assets/e99a0ce6-fe18-4785-8c71-5a798d008be6" />
+
+
 Practical antenna design tool for HAM radio operators and shortwave listeners.
 Pick an antenna type and a band, get element/radial/counterpoise lengths,
 feedpoint impedance, balun/unun/choke advice, plain-language build notes, and
@@ -45,6 +48,8 @@ mainstream, well-documented design (a true wavelength-long center feed sits
 on a current null, giving an oddly high, poorly-characterized impedance) --
 the EDZ and full-wave loop already cover "more wire, more gain" with
 formulas that are actually sourced.
+
+<img width="1023" height="829" alt="HAM Antenna Designer-2" src="https://github.com/user-attachments/assets/032b215c-b35d-4bff-8425-a43580f48c36" />
 
 ## Bands
 
