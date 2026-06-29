@@ -1102,11 +1102,11 @@ HOE TE GEBRUIKEN:
                 f"{'='*90}\n\n"
             )
 
-            # Get build advice - indent each line for proper formatting
+            # Get build advice - preserve existing indentation for continuation lines
             build_notes_text = build_advice(self.design, units=units, lang=lang)
-            # Add indent to each line of build notes
+            # Add indent only to lines that don't already start with spaces
             indented_build_notes = "\n".join(
-                f"  {line}" if line.strip() else ""
+                f"  {line}" if line and not line[0].isspace() else line
                 for line in build_notes_text.split("\n")
             )
             briefing += indented_build_notes + "\n"
