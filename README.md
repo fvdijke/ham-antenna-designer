@@ -49,6 +49,8 @@ on a current null, giving an oddly high, poorly-characterized impedance) --
 the EDZ and full-wave loop already cover "more wire, more gain" with
 formulas that are actually sourced.
 
+<img width="1023" height="829" alt="HAM Antenna Designer-2" src="https://github.com/user-attachments/assets/032b215c-b35d-4bff-8425-a43580f48c36" />
+
 ## Bands
 
 All HAM bands 160m-70cm, plus broadcast/SWL bands LW, MW, KW (general
