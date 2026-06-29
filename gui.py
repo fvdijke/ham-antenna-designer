@@ -759,7 +759,7 @@ HOE TE GEBRUIKEN:
         try:
             popup = tk.Toplevel(self)
             popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
-            popup.geometry("750x900")
+            popup.geometry("900x950")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
@@ -770,7 +770,7 @@ HOE TE GEBRUIKEN:
 
             # Canvas for Smith Chart
             canvas = tk.Canvas(
-                popup, width=700, height=380, bg=PANEL_BG, highlightthickness=0,
+                popup, width=850, height=450, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
@@ -784,8 +784,8 @@ HOE TE GEBRUIKEN:
             close_btn.pack()
 
             # Chart parameters
-            center = (290, 290)
-            radius = 250
+            center = (425, 225)
+            radius = 180
 
             # Draw grid
             draw_smith_chart_grid(canvas, center, radius, grid_color=AMBER_DIM, line_width=1)
@@ -1044,7 +1044,7 @@ HOE TE GEBRUIKEN:
 
             # Design parameters
             briefing += (
-                f"{spec_label}\n"
+                f"\n{spec_label}\n"
                 f"{'-'*90}\n"
             )
 
@@ -1057,14 +1057,14 @@ HOE TE GEBRUIKEN:
                     length = elem.length_m
                     unit_str = "m"
 
-                briefing += f"  {elem.name:25s}: {length:8.2f} {unit_str}\n"
+                briefing += f"  {elem.name:25s}: {length:10.2f} {unit_str}\n"
 
             briefing += (
                 f"\n{elec_label}\n"
-                f"  {feedpoint_label:20s} {self.design.feedpoint_impedance_ohms:.1f} Ohms\n"
-                f"  {gain_label:20s} {gain_info['gain_dbi']:.2f} dBi\n"
-                f"  {fb_label:20s} {gain_info['f_b_ratio_db']:.1f} dB\n"
-                f"  {toa_label:20s} {gain_info['takeoff_angle_deg']:.0f}°\n"
+                f"  {feedpoint_label:25s} {self.design.feedpoint_impedance_ohms:.1f} Ohms\n"
+                f"  {gain_label:25s} {gain_info['gain_dbi']:.2f} dBi\n"
+                f"  {fb_label:25s} {gain_info['f_b_ratio_db']:.1f} dB\n"
+                f"  {toa_label:25s} {gain_info['takeoff_angle_deg']:.0f}°\n"
             )
 
             # SWR info
@@ -1072,10 +1072,10 @@ HOE TE GEBRUIKEN:
 
             briefing += (
                 f"\n{matching_label}\n"
-                f"  {swr_label:20s} {swr_data['swr']}:1\n"
-                f"  {rl_label:20s} {swr_data['return_loss_db']} dB\n"
-                f"  {pr_label:20s} {swr_data['power_reflected_percent']}%\n"
-                f"  {pt_label:20s} {swr_data['power_transmitted_percent']}%\n"
+                f"  {swr_label:25s} {swr_data['swr']}:1\n"
+                f"  {rl_label:25s} {swr_data['return_loss_db']} dB\n"
+                f"  {pr_label:25s} {swr_data['power_reflected_percent']}%\n"
+                f"  {pt_label:25s} {swr_data['power_transmitted_percent']}%\n"
             )
 
             # Cable loss estimate
@@ -1866,7 +1866,7 @@ PRAKTISCH GEBRUIK:
             # Create popup
             popup = tk.Toplevel(self)
             popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
-            popup.geometry("800x750")
+            popup.geometry("950x800")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
@@ -1877,7 +1877,7 @@ PRAKTISCH GEBRUIK:
 
             # Canvas for SWR curve
             canvas = tk.Canvas(
-                popup, width=780, height=380, bg=PANEL_BG, highlightthickness=0,
+                popup, width=900, height=420, bg=PANEL_BG, highlightthickness=0,
                 relief="flat", borderwidth=0
             )
             canvas.pack(padx=10, pady=(5, 5))
@@ -1886,8 +1886,8 @@ PRAKTISCH GEBRUIK:
             freqs = sweep["frequencies"]
             swrs = sweep["swr_values"]
 
-            canvas_w = 780
-            canvas_h = 380
+            canvas_w = 900
+            canvas_h = 420
             margin = 50
 
             freq_min, freq_max = min(freqs), max(freqs)
