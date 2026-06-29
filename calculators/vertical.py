@@ -16,12 +16,12 @@ from registry import register
 
 
 @register("vertical_quarter_wave")
-def design_vertical(band: str, radial_count: int = 4, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_vertical(band: str, radial_count: int = 4, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     if radial_count < 1:
         raise ValueError("radial_count must be at least 1")
 
     freq_mhz = design_frequency(band, freq_mhz)
-    length_ft = round(234.0 / freq_mhz, 3)
+    length_ft = round((234.0 / freq_mhz) * wire_vf, 3)
     length_m = round(length_ft * METERS_PER_FOOT, 3)
 
     elements = [Element("mast", length_ft, length_m, "radiator")]

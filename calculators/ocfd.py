@@ -21,9 +21,9 @@ from registry import register
 
 
 @register("off_center_fed_dipole")
-def design_ocfd(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_ocfd(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
-    total_ft = 468.0 / freq_mhz
+    total_ft = (468.0 / freq_mhz) * wire_vf
 
     short_ft = round(total_ft / 3, 3)
     long_ft = round(total_ft * 2 / 3, 3)

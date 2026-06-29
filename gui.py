@@ -20,12 +20,12 @@ from tkinter import filedialog, messagebox, ttk
 import calculators  # noqa: F401 -- registers all antenna calculator types
 from build_notes import build_advice
 from data_store import (
-    BANDS_MHZ, CABLES, SHAPE_FAMILIES, STANDALONE_TYPES,
-    antenna_type_for, antenna_type_label, wave_fractions_for,
+    BANDS_MHZ, CABLES, WIRES, SHAPE_FAMILIES, STANDALONE_TYPES,
+    antenna_type_for, antenna_type_label, wave_fractions_for, wire_velocity_factor,
 )
 from drawing import draw_antenna
 from format_text import format_summary
-from i18n import SHAPE_FAMILY_LABELS, WAVE_FRACTION_LABELS
+from i18n import SHAPE_FAMILY_LABELS, WAVE_FRACTION_LABELS, WIRE_LABELS
 from registry import REGISTRY, design as design_antenna
 from settings import load_settings, save_settings
 from widgets import LogoCanvas, RoundedButton, RoundedPanel
@@ -62,6 +62,24 @@ def _band_display(band: str) -> str:
     return f"{band} ({low:g}-{high:g} MHz)"
 
 
+def _wire_label(key: str, lang: str) -> str:
+    """Get translated wire name for display."""
+    return WIRE_LABELS.get(key, {}).get(lang, key)
+
+
+def _wire_display_values(lang: str):
+    """Get all wire names translated to the selected language."""
+    return [_wire_label(k, lang) for k in WIRES.keys()]
+
+
+def _wire_key_from_display(display_name: str, lang: str) -> str:
+    """Convert translated wire display name back to English key."""
+    for key in WIRES.keys():
+        if _wire_label(key, lang) == display_name:
+            return key
+    return display_name
+
+
 _BAND_DISPLAY_TO_KEY = {_band_display(b): b for b in BANDS_MHZ}
 
 UI_TEXT = {
@@ -72,6 +90,7 @@ UI_TEXT = {
         "band": "Band",
         "units": "Units",
         "language": "Language",
+        "antenna_wire": "Antenna wire (VF)",
         "feed_cable": "Feed cable (VF)",
         "calculate": "Calculate",
         "export_svg": "Export SVG drawing...",
@@ -87,6 +106,7 @@ UI_TEXT = {
         "custom_freq": "Custom freq (MHz)",
         "custom_freq_hint": "Optional -- overrides the band, calculates for this exact frequency",
         "custom_freq_invalid": "Not a valid frequency -- using the band's default instead",
+        "balun_help": "Balun/Unun Guide",
     },
     "nl": {
         "window_title": "HAM Antenne Ontwerper",
@@ -95,6 +115,7 @@ UI_TEXT = {
         "band": "Band",
         "units": "Eenheden",
         "language": "Taal",
+        "antenna_wire": "Antennedraad (VF)",
         "feed_cable": "Voedingskabel (VF)",
         "calculate": "Berekenen",
         "export_svg": "SVG-tekening exporteren...",
@@ -110,6 +131,7 @@ UI_TEXT = {
         "custom_freq": "Eigen freq (MHz)",
         "custom_freq_hint": "Optioneel -- overschrijft de band, rekent op deze exacte frequentie",
         "custom_freq_invalid": "Geen geldige frequentie -- standaardwaarde van de band gebruikt",
+        "balun_help": "Balun/Unun Gids",
     },
 }
 
@@ -125,6 +147,7 @@ class AntennaDesignerApp(tk.Tk):
         self.primary_choice = tk.StringVar(value="vertical")
         self.wave_fraction = tk.StringVar(value="1/4")
         self.antenna_type = tk.StringVar(value="vertical_quarter_wave")
+        self.antenna_wire = tk.StringVar(value=next(iter(WIRES)))
         self.feed_cable = tk.StringVar(value=next(iter(CABLES)))
 
         self._configure_style()
@@ -262,6 +285,15 @@ class AntennaDesignerApp(tk.Tk):
         self.band_combo.grid(row=0, column=3, padx=10, pady=10, sticky="w")
         self.band_combo.bind("<<ComboboxSelected>>", self._on_band_change)
 
+        self.custom_freq_label = ttk.Label(controls, text="or/or", style="Panel.TLabel")
+        self.custom_freq_label.grid(row=1, column=2, padx=10, pady=(0, 10), sticky="w")
+        self.custom_freq = tk.StringVar(value="")
+        custom_freq_entry = ttk.Entry(controls, textvariable=self.custom_freq, width=20)
+        custom_freq_entry.grid(row=1, column=3, padx=10, pady=(0, 10), sticky="w")
+        custom_freq_entry.bind("<KeyRelease>", lambda e: self._calculate())
+        self.custom_freq_hint = ttk.Label(controls, text=self._t("custom_freq_hint"), style="Panel.TLabel")
+        self.custom_freq_hint.grid(row=1, column=4, padx=10, pady=(0, 10), sticky="w")
+
         # Wave (wavelength fraction) picker -- only gridded when the current
         # shape family actually has 2+ fractions to choose between.
         self.wave_label = ttk.Label(controls, text=self._t("wave"), style="Panel.TLabel")
@@ -286,22 +318,22 @@ class AntennaDesignerApp(tk.Tk):
             rb = ttk.Radiobutton(lang_frame, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
             rb.grid(row=0, column=i, padx=(0, 6))
 
-        self.cable_label = ttk.Label(controls, text=self._t("feed_cable"), style="Panel.TLabel")
-        self.cable_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
-        cable_combo = ttk.Combobox(controls, textvariable=self.feed_cable, values=list(CABLES), state="readonly", width=20)
-        cable_combo.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
-        cable_combo.bind("<<ComboboxSelected>>", lambda e: self._update_cable_label())
-        self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
-        self.cable_vf_label.grid(row=3, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        self.wire_label = ttk.Label(controls, text=self._t("antenna_wire"), style="Panel.TLabel")
+        self.wire_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
+        self.wire_combo = ttk.Combobox(controls, state="readonly", width=40)
+        self.wire_combo.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
+        self._update_wire_combo_display()
+        self.wire_combo.bind("<<ComboboxSelected>>", self._on_wire_change)
+        self.wire_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
+        self.wire_vf_label.grid(row=3, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
-        self.custom_freq_label = ttk.Label(controls, text=self._t("custom_freq"), style="Panel.TLabel")
-        self.custom_freq_label.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="w")
-        self.custom_freq = tk.StringVar(value="")
-        custom_freq_entry = ttk.Entry(controls, textvariable=self.custom_freq, width=10)
-        custom_freq_entry.grid(row=4, column=1, padx=10, pady=(0, 10), sticky="w")
-        custom_freq_entry.bind("<KeyRelease>", lambda e: self._calculate())
-        self.custom_freq_hint = ttk.Label(controls, text=self._t("custom_freq_hint"), style="Panel.TLabel")
-        self.custom_freq_hint.grid(row=4, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        self.cable_label = ttk.Label(controls, text=self._t("feed_cable"), style="Panel.TLabel")
+        self.cable_label.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="w")
+        cable_combo = ttk.Combobox(controls, textvariable=self.feed_cable, values=list(CABLES), state="readonly", width=40)
+        cable_combo.grid(row=4, column=1, padx=10, pady=(0, 10), sticky="w")
+        cable_combo.bind("<<ComboboxSelected>>", lambda e: (self._update_cable_label(), self._calculate()))
+        self.cable_vf_label = ttk.Label(controls, text="", style="Panel.TLabel")
+        self.cable_vf_label.grid(row=4, column=2, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Results panel.
         results_border, results_frame = self._make_panel(self)
@@ -318,8 +350,17 @@ class AntennaDesignerApp(tk.Tk):
         # Build advice panel.
         advice_border, advice_frame = self._make_panel(self)
         advice_border.pack(fill="both", expand=True, padx=14, pady=8)
-        self.advice_title = ttk.Label(advice_frame, text=self._t("advice"), style="PanelTitle.TLabel")
-        self.advice_title.pack(anchor="w", padx=12, pady=(12, 0))
+
+        # Title with help button
+        advice_title_frame = ttk.Frame(advice_frame, style="Panel.TFrame")
+        advice_title_frame.pack(anchor="w", padx=12, pady=(12, 0), fill="x")
+
+        self.advice_title = ttk.Label(advice_title_frame, text=self._t("advice"), style="PanelTitle.TLabel")
+        self.advice_title.pack(anchor="w", side="left")
+
+        self.balun_help_btn = RoundedButton(advice_title_frame, self._t("balun_help"), self._show_balun_help,
+                                            PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+        self.balun_help_btn.pack(side="right", padx=(10, 0))
         self.advice_text = tk.Text(
             advice_frame, bg=PANEL_BG, fg=FG, insertbackground=AMBER,
             font=FONT_COURIER, relief="flat", borderwidth=0, wrap="word", padx=12, pady=12,
@@ -327,12 +368,38 @@ class AntennaDesignerApp(tk.Tk):
         )
         self.advice_text.pack(fill="both", expand=True, padx=12, pady=12)
 
+        self._update_wire_label()
         self._update_cable_label()
 
     def _update_cable_label(self):
         cable = CABLES[self.feed_cable.get()]
         self.cable_vf_label.config(
             text=self._t("vf_label").format(vf=cable["velocity_factor"], notes=cable["notes"])
+        )
+
+    def _update_wire_combo_display(self):
+        """Update wire combo values with current language translations."""
+        lang = self.lang.get()
+        wire_keys = list(WIRES.keys())
+        self.wire_combo["values"] = [_wire_label(k, lang) for k in wire_keys]
+        # Update the display to show the translated name of the currently selected wire
+        current_wire = self.antenna_wire.get()
+        if current_wire in WIRES:
+            self.wire_combo.set(_wire_label(current_wire, lang))
+
+    def _on_wire_change(self, event=None):
+        """Handle wire combo selection - convert display name to English key."""
+        display_name = self.wire_combo.get()
+        lang = self.lang.get()
+        wire_key = _wire_key_from_display(display_name, lang)
+        self.antenna_wire.set(wire_key)
+        self._update_wire_label()
+        self._calculate()
+
+    def _update_wire_label(self):
+        wire = WIRES[self.antenna_wire.get()]
+        self.wire_vf_label.config(
+            text=self._t("vf_label").format(vf=wire["velocity_factor"], notes=wire["notes"])
         )
 
     def _refresh_wave_picker(self):
@@ -398,6 +465,8 @@ class AntennaDesignerApp(tk.Tk):
         self.band_label.config(text=t["band"])
         self.units_label.config(text=t["units"])
         self.lang_label.config(text=t["language"])
+        self.wire_label.config(text=t["antenna_wire"])
+        self._update_wire_combo_display()
         self.cable_label.config(text=t["feed_cable"])
         self.custom_freq_label.config(text=t["custom_freq"])
         self.results_title.config(text=t["results"])
@@ -460,8 +529,9 @@ class AntennaDesignerApp(tk.Tk):
         band = self.band.get()
         antenna_type = self.antenna_type.get()
         freq_mhz = self._parse_custom_freq()
+        wire_vf = wire_velocity_factor(self.antenna_wire.get())
 
-        self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz)
+        self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz, wire_vf=wire_vf)
 
         self._set_text_with_hanging_indent(self.results_text, format_summary(self.design, units=units, lang=lang), highlight_title=True)
         self._set_text_with_hanging_indent(self.advice_text, build_advice(self.design, units=units, lang=lang))
@@ -484,6 +554,247 @@ class AntennaDesignerApp(tk.Tk):
         title = self._t("drawing_window_title").format(label=label, band=self.design.band)
         show_drawing(self, self.design, units=self.units.get(), lang=lang,
                       window_title=title, not_to_scale_note=self._t("not_to_scale"))
+
+    def _show_balun_help(self):
+        """Show balun/unun construction guide popup."""
+        lang = self.lang.get()
+
+        help_text = {
+            "en": """BALUN/UNUN CONSTRUCTION GUIDE
+
+1:1 CURRENT BALUN (Dipoles, Balanced Antennas)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: Center-fed dipoles, quad loops, balanced antennas
+Core: FT240-43, FT240-52 (HF bands)
+Construction:
+• Wind 10-15 turns of coax through toroid
+• Connect center to balanced element
+• Connect shield to radial/ground
+
+1:1 VOLTAGE BALUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: High impedance antennas (G5RV, multiband doublets)
+Core: Ferrite rod or binocular core
+Primary winding: 10 turns
+Secondary winding: 10 turns (isolated)
+
+2:1 UNUN (Matching 50Ω to 200Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: Loop antennas, some end-fed variants
+Construction:
+• Primary: 10 turns on FT240-43
+• Secondary: 5 turns on same core
+• Impedance transformation: Z_out = 4 × Z_in
+
+4:1 CURRENT UNUN (Matching 50Ω to 12.5Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: Small loops, some delta loops
+Construction:
+• Primary: 10 turns
+• Secondary: 5 turns
+• For current balun: use parallel secondary windings
+• For unun: use series connection
+
+9:1 UNUN (Matching 50Ω to ~450Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: End-fed half-wave antennas, EFHW
+Core: FT240-43, FT240-52
+Construction:
+• Primary: 10 turns (thin wire)
+• Secondary: 3 turns (thicker wire for current handling)
+• Critical for end-fed designs
+• Provides impedance matching + isolation
+
+16:1 UNUN (Matching 50Ω to 3.1kΩ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: Random-length end-fed antennas, tuned end-feds
+Core: FT240-43, FT240-52, or FT82-43
+Construction:
+• Primary: 10 turns
+• Secondary: 2-3 turns (for current handling)
+• Turns ratio squared = impedance ratio (4² = 16)
+
+49:1 UNUN (Matching 50Ω to ~2450Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: Long-wire receive antennas, some end-fed designs
+Core: FT240-43 or larger for power handling
+Construction:
+• Primary: 10 turns
+• Secondary: 2 turns (very heavy wire for current)
+• Turns ratio = 7:1 (7² = 49)
+• Excellent for high-impedance loads
+
+64:1 UNUN (Matching 50Ω to 3200Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use: High-impedance random-wire antennas
+Core: FT240-43 or FT82-43
+Construction:
+• Primary: 10 turns
+• Secondary: 1.25 turns (wrapped half-turn twice)
+• Turns ratio = 8:1 (8² = 64)
+• For very high impedance loads
+
+IMPEDANCE MATCHING FORMULA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For any transformer ratio N:
+Z_out = Z_in × N²
+
+Examples:
+• 4:1 = 50 × 16 = 800Ω
+• 9:1 = 50 × 81 = 4050Ω
+• 16:1 = 50 × 256 = 12,800Ω
+• 49:1 = 50 × 2401 = 120kΩ
+• 64:1 = 50 × 4096 = 204kΩ
+
+MATERIAL SELECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HF Bands (1.8-30 MHz):  FT240-43 or FT240-52
+VHF/UHF (50-450 MHz):   Smaller cores (FT50-43)
+Low Bands (160m, 80m):  Larger cores for better flux handling
+
+KEY CONSTRUCTION TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Use good quality coax (RG-58, RG-213)
+✓ Keep winding wire gauge appropriate for power level
+✓ Wind toroid in same direction for all windings
+✓ Use #18-20 wire for HF bands
+✓ Seal/weatherproof with silicone or epoxy
+✓ Mount in PVC or metal enclosure
+✓ Test with antenna analyzer (if available)
+✓ Add ferrite beads for EMI suppression""",
+
+            "nl": """BALUN/UNUN CONSTRUCTIEGIDS
+
+1:1 STROOMBALUN (Dipolen, Gebalanceerde Antennes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Middengevoed dipolen, quad loops, gebalanceerde antennes
+Kern: FT240-43, FT240-52 (HF-banden)
+Constructie:
+• 10-15 windingen coax door toroid
+• Verbind midden met gebalanceerd element
+• Verbind scherm met radiale/aarde
+
+1:1 SPANNINGSBALUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Hoge impedantie-antennes (G5RV, multiband doublets)
+Kern: Ferrietstaaaf of binoculaire kern
+Primaire winding: 10 windingen
+Secundaire winding: 10 windingen (geïsoleerd)
+
+2:1 UNUN (50Ω naar 200Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Loop antennes, sommige end-fed varianten
+Constructie:
+• Primair: 10 windingen op FT240-43
+• Secundair: 5 windingen op dezelfde kern
+• Impedantietransformatie: Z_uit = 4 × Z_in
+
+4:1 STROOMUNUN (50Ω naar 12,5Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Kleine loops, sommige delta loops
+Constructie:
+• Primair: 10 windingen
+• Secundair: 5 windingen
+• Voor stroombalun: parallel secundaire windingen
+• Voor unun: serieschakeling
+
+9:1 UNUN (50Ω naar ~450Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: End-fed halve-golf antennes, EFHW
+Kern: FT240-43, FT240-52
+Constructie:
+• Primair: 10 windingen (dunne draad)
+• Secundair: 3 windingen (dikkere draad voor stroomvermogen)
+• Kritisch voor end-fed designs
+• Biedt impedantietransformatie + isolatie
+
+16:1 UNUN (50Ω naar 3,1kΩ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Random-length end-fed antennes, afgestemde end-feds
+Kern: FT240-43, FT240-52, of FT82-43
+Constructie:
+• Primair: 10 windingen
+• Secundair: 2-3 windingen (voor stroomvermogen)
+• Windingsverhouding kwadraat = impedantieverhouding (4² = 16)
+
+49:1 UNUN (50Ω naar ~2450Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Ontvangst lange-draad antennes, sommige end-fed designs
+Kern: FT240-43 of groter voor vermogensvermogen
+Constructie:
+• Primair: 10 windingen
+• Secundair: 2 windingen (zeer dikke draad voor stroom)
+• Windingsverhouding = 7:1 (7² = 49)
+• Uitstekend voor hoge-impedantie belastingen
+
+64:1 UNUN (50Ω naar 3200Ω)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Gebruik: Hoge-impedantie random-wire antennes
+Kern: FT240-43 of FT82-43
+Constructie:
+• Primair: 10 windingen
+• Secundair: 1,25 windingen (halve windingen tweemaal)
+• Windingsverhouding = 8:1 (8² = 64)
+• Voor zeer hoge impedantie belastingen
+
+IMPEDANTIE TRANSFORMATIE FORMULE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Voor elke transformator verhouding N:
+Z_uit = Z_in × N²
+
+Voorbeelden:
+• 4:1 = 50 × 16 = 800Ω
+• 9:1 = 50 × 81 = 4050Ω
+• 16:1 = 50 × 256 = 12.800Ω
+• 49:1 = 50 × 2401 = 120kΩ
+• 64:1 = 50 × 4096 = 204kΩ
+
+MATERIAALKEUZE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HF-banden (1,8-30 MHz):   FT240-43 of FT240-52
+VHF/UHF (50-450 MHz):     Kleinere kernen (FT50-43)
+Lage banden (160m, 80m):  Grotere kernen voor beter flux
+
+CONSTRUCTIE-TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Gebruik kwaliteit-coax (RG-58, RG-213)
+✓ Draaddikte passend aan vermogensniveau
+✓ Wind toroid in dezelfde richting
+✓ Gebruik #18-20 draad voor HF-banden
+✓ Seal met siliconen of epoxy
+✓ Mount in PVC of metalen behuizing
+✓ Test met antenne-analyzer (indien beschikbaar)
+✓ Voeg ferrietparels toe voor EMI-suppressie"""
+        }
+
+        # Create popup window
+        popup = tk.Toplevel(self)
+        popup.title(self._t("balun_help"))
+        popup.geometry("700x600")
+        popup.resizable(True, True)
+        popup.configure(bg=BG)
+
+        # Create text widget with scrollbar
+        text_frame = ttk.Frame(popup, style="Panel.TFrame")
+        text_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        text_widget = tk.Text(
+            text_frame, height=25, bg=PANEL_BG, fg=FG, font=("Courier", 9),
+            relief="flat", borderwidth=0, padx=10, pady=10, wrap="word"
+        )
+        text_widget.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        scrollbar.pack(side="right", fill="y")
+        text_widget.config(yscrollcommand=scrollbar.set)
+
+        text_widget.insert(1.0, help_text.get(lang, help_text["en"]))
+        text_widget.config(state="disabled")
+
+        # Close button
+        close_btn = RoundedButton(popup, "Close" if lang == "en" else "Sluiten", popup.destroy,
+                                 PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 9, "bold"))
+        close_btn.pack(pady=10)
 
 
 

@@ -28,11 +28,11 @@ DISC_RATIO = 0.7
 
 
 @register("discone_receive")
-def design_discone(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_discone(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     low_mhz = low_frequency(band, freq_mhz)
     freq_mhz = design_frequency(band, freq_mhz)
 
-    cone_ft = round(234.0 / low_mhz, 3)
+    cone_ft = round((234.0 / low_mhz) * wire_vf, 3)
     cone_m = round(cone_ft * METERS_PER_FOOT, 3)
     disc_ft = round(cone_ft * DISC_RATIO, 3)
     disc_m = round(disc_ft * METERS_PER_FOOT, 3)

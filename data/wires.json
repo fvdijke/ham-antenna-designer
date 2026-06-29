@@ -1,0 +1,134 @@
+{
+  "Bare copper wire": {
+    "velocity_factor": 0.98,
+    "material": "Copper",
+    "insulation": "None",
+    "notes": "Standard option"
+  },
+  "Hard drawn copper wire": {
+    "velocity_factor": 0.98,
+    "material": "Copper",
+    "insulation": "None",
+    "notes": "Stiff, mechanically strong"
+  },
+  "Tinned copper wire": {
+    "velocity_factor": 0.98,
+    "material": "Copper",
+    "insulation": "None",
+    "notes": "Corrosion resistant"
+  },
+  "Litz wire (bare)": {
+    "velocity_factor": 0.98,
+    "material": "Copper",
+    "insulation": "None",
+    "notes": "Flexible, many strands"
+  },
+  "PVC installation wire": {
+    "velocity_factor": 0.95,
+    "material": "Copper",
+    "insulation": "PVC",
+    "notes": "Budget friendly, common"
+  },
+  "Soft stranded wire": {
+    "velocity_factor": 0.95,
+    "material": "Copper",
+    "insulation": "PVC",
+    "notes": "Easy to bend"
+  },
+  "Speaker cable": {
+    "velocity_factor": 0.95,
+    "material": "Copper",
+    "insulation": "PVC",
+    "notes": "Budget option"
+  },
+  "Automotive wire": {
+    "velocity_factor": 0.95,
+    "material": "Copper",
+    "insulation": "PVC",
+    "notes": "UV resistant"
+  },
+  "Silicone wire": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "Silicone",
+    "notes": "High temperature"
+  },
+  "PTFE/Teflon wire": {
+    "velocity_factor": 0.97,
+    "material": "Copper",
+    "insulation": "PTFE",
+    "notes": "High frequency"
+  },
+  "Flexweave antenna wire": {
+    "velocity_factor": 0.95,
+    "material": "Copper",
+    "insulation": "PE/PVC",
+    "notes": "Very flexible"
+  },
+  "DX-Wire UL": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "PE",
+    "notes": "Professional grade"
+  },
+  "DX-Wire Premium": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "PE",
+    "notes": "High-end"
+  },
+  "DX-Wire Heavy Duty": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "PE",
+    "notes": "Durable"
+  },
+  "Copperweld (uninsulated)": {
+    "velocity_factor": 0.98,
+    "material": "Copper clad steel",
+    "insulation": "None",
+    "notes": "High strength"
+  },
+  "Copperweld (insulated)": {
+    "velocity_factor": 0.96,
+    "material": "Copper clad steel",
+    "insulation": "PE/PVC",
+    "notes": "Strength + insulation"
+  },
+  "Stainless steel antenna wire": {
+    "velocity_factor": 0.98,
+    "material": "Stainless steel",
+    "insulation": "None",
+    "notes": "Corrosion resistant"
+  },
+  "Aluminum wire": {
+    "velocity_factor": 0.98,
+    "material": "Aluminum",
+    "insulation": "None",
+    "notes": "Lightweight, affordable"
+  },
+  "Military field telephone wire": {
+    "velocity_factor": 0.96,
+    "material": "Steel/Copper",
+    "insulation": "PE",
+    "notes": "WD-1/TT standard"
+  },
+  "CAT5 conductor": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "PE",
+    "notes": "Twisted pair"
+  },
+  "CAT6 conductor": {
+    "velocity_factor": 0.96,
+    "material": "Copper",
+    "insulation": "PE",
+    "notes": "Twisted pair"
+  },
+  "Magnet wire": {
+    "velocity_factor": 0.98,
+    "material": "Copper",
+    "insulation": "Lacquer",
+    "notes": "Winding wire"
+  }
+}

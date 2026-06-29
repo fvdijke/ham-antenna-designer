@@ -38,7 +38,7 @@ _DA, _DB = 0.001, 0.07178571429
 
 
 @register("moxon_2_element")
-def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
     wavelength_m = 300.0 / freq_mhz
 
@@ -51,7 +51,7 @@ def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, la
     d = _DA * x + _DB
     e = b + c + d
 
-    a_m, b_m, c_m, d_m, e_m = (round(v * wavelength_m, 3) for v in (a, b, c, d, e))
+    a_m, b_m, c_m, d_m, e_m = (round(v * wavelength_m * wire_vf, 3) for v in (a, b, c, d, e))
 
     driven_total_m = round(a_m + 2 * b_m, 3)
     reflector_total_m = round(a_m + 2 * d_m, 3)

@@ -57,8 +57,19 @@ and PMR446 -- each band dropdown shows its frequency range.
 
 - **GUI** (`gui.py`) -- dark background, amber accents, rounded panels,
   matches the HAMIOS look. Antenna type / band / units / language pickers,
-  a feed-cable velocity-factor reference table, live calculation, build
-  notes, SVG export, and an in-app schematic viewer.
+  antenna wire and feed-cable velocity-factor selectors with 22 wire types
+  and 44 cable types, live dynamic calculation, build notes, SVG export, and
+  an in-app schematic viewer.
+- **Antenna Wire Selection** -- 22 wire types (bare copper, Litz, PVC, 
+  Silicone, PTFE, DX-Wire, Copperweld, CAT5/6, etc.) with velocity factors
+  (0.95-0.98). Wire VF is integrated into all antenna calculations to match
+  electrical length to actual wire properties.
+- **Feed Cable Selection** -- 44 cable types including RG-series, LMR-series,
+  Heliax, and specialty cables with velocity factors (0.66-0.97). Displayed
+  for reference during design.
+- **Dynamic Calculations** -- real-time antenna recalculation as you change
+  antenna type, band, wire type, cable type, frequency, or units. No manual
+  "Calculate" button needed.
 - **In-app drawing viewer** -- glowing amber schematic on a dark,
   blueprint-grid canvas (not to scale), with a HUD-style corner frame,
   ground-hatching symbols, and every element, the balun/unun/choke, the
@@ -66,13 +77,18 @@ and PMR446 -- each band dropdown shows its frequency range.
   in the viewer switches to an isometric 3D rendering of the same design
   (mast + radial fan in a circle, Yagi boom-and-elements in depth, etc.)
   for antenna types where a 3D view adds something a flat side-view can't.
+- **Balun/Unun Construction Guide** -- comprehensive popup guide with 9
+  transformer ratios (1:1, 2:1, 4:1, 9:1, 16:1, 49:1, 64:1), construction
+  instructions, impedance matching formulas, and material selection by band.
+  Available in English and Dutch.
 - **SVG export** -- black-on-white version of the 2D schematic (graph-paper
   grid, rounded component boxes, matching corner frame), for printing/sharing.
 - **CLI** -- `antenna_calc.py`, `build_notes.py`, `drawing.py` all run
   standalone with `<antenna_type> <band> --units --lang`.
-- **EN/NL** -- full bilingual support. Dutch build notes use authentic HAM
-  jargon (wave, choke, balun, unun, SWR stay English, as real Dutch hams
-  say them) instead of literal textbook translation.
+- **EN/NL** -- full bilingual support including wire names and balun guide.
+  Dutch build notes use authentic HAM jargon (wave, choke, balun, unun, SWR
+  stay English, as real Dutch hams say them) instead of literal textbook
+  translation.
 - **Settings persistence** -- language and units are remembered across runs.
 - **Custom frequency** -- an optional exact-MHz override next to the band
   picker, for designing at a specific spot in (or outside) the band instead
@@ -80,17 +96,27 @@ and PMR446 -- each band dropdown shows its frequency range.
 
 ## Running it
 
+**Windows:**
+- Double-click **"Start HAM Antenna Designer.bat"** (or `.ps1` for PowerShell)
+- Or from command prompt:
+  ```
+  cd ham-antenna-designer
+  python -m venv .venv && .venv\Scripts\activate.bat && pip install -r requirements.txt
+  python gui.py
+  ```
+
+**macOS/Linux:**
 ```
 cd ham-antenna-designer
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 python3 gui.py
 ```
-
 Or just double-click **"Start HAM Antenna Designer.command"** on macOS.
 
 ## Architecture
 
-- `data/` -- bands, feed cables (with velocity factor), antenna type metadata
+- `data/` -- bands, antenna wire types (with velocity factor), feed cables
+  (with velocity factor), antenna type metadata
 - `calculators/` -- one module per antenna type, self-registering via
   `registry.py`'s `@register` decorator. Add a type: write one calculator,
   nothing else needs to know it exists.

@@ -24,11 +24,11 @@ SPACING_WAVELENGTHS = 0.15
 
 
 @register("quad_2_element")
-def design_quad(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_quad(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
-    wavelength_ft = 984.0 / freq_mhz
+    wavelength_ft = (984.0 / freq_mhz) * wire_vf
 
-    driven_circumference_ft = 1005.0 / freq_mhz
+    driven_circumference_ft = (1005.0 / freq_mhz) * wire_vf
     reflector_circumference_ft = driven_circumference_ft * REFLECTOR_FACTOR
     spacing_ft = round(wavelength_ft * SPACING_WAVELENGTHS, 3)
 

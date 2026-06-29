@@ -27,11 +27,11 @@ from registry import register
 
 
 @register("ground_loop_receive")
-def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None) -> AntennaDesign:
+def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
     low_mhz = low_frequency(band, freq_mhz)
     freq_mhz = design_frequency(band, freq_mhz)
 
-    total_ft = round(234.0 / low_mhz, 3)
+    total_ft = round((234.0 / low_mhz) * wire_vf, 3)
     total_m = round(total_ft * METERS_PER_FOOT, 3)
 
     elements = [Element("loop_wire", total_ft, total_m, "radiator")]

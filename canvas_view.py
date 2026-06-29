@@ -14,26 +14,29 @@ from scene import Scene, build_scene
 from scene3d import _SCENE3D_BUILDERS, build_scene_3d
 from widgets import RoundedButton, _rounded_rect_points, glow_layers_for
 
-BG = "#1a1a1a"
-PANEL_BG = "#141414"
+BG = "#051a28"
+PANEL_BG = "#061f2d"
 AMBER = "#ffb000"
-AMBER_DIM = "#5a3d00"
+AMBER_DIM = "#8a6000"
+CYAN = "#00d4ff"
+CYAN_DIM = "#0099cc"
 FG = "#e8e8e8"
 
 # Radials/counterpoise are drawn darker than the main radiating element
 # (the "waveform"), so the part that actually carries the wave stands out
 # from the supporting ground system at a glance.
 AMBER_RADIAL = "#9a6c00"
-REFERENCE_GRAY = "#555555"
+REFERENCE_GRAY = "#2a5a7a"
 
 # Cyan accent for dimension lines -- a third color so "this is a measured
 # distance" reads as visually distinct from both the amber wire and the
 # plain white caption text.
-DIM_COLOR = "#7fd8ff"
+DIM_COLOR = "#00ffff"
 
 # Blueprint-style grid background, drawn behind everything else.
-GRID_MINOR = "#1c1c1c"
-GRID_MAJOR = "#242424"
+# Blue blueprint theme
+GRID_MINOR = "#0a1f2e"
+GRID_MAJOR = "#1a3a52"
 GRID_SPACING = 32
 GRID_MAJOR_EVERY = 4
 
@@ -126,6 +129,17 @@ def _draw_dim_line(canvas, x1, y1, x2, y2):
     canvas.create_line(x1, y1, x2, y2, fill=DIM_COLOR, width=1, arrow=tk.BOTH, arrowshape=(6, 7, 3))
 
 
+def _draw_element_dim(canvas, x1, y1, x2, y2, label):
+    """Draw element length with arrows and label."""
+    canvas.create_line(x1, y1, x2, y2, fill=DIM_COLOR, width=2, arrow=tk.BOTH, arrowshape=(8, 10, 4))
+    mid_x = (x1 + x2) / 2
+    mid_y = (y1 + y2) / 2
+    offset_x = -(y2 - y1) / 20
+    offset_y = (x2 - x1) / 20
+    canvas.create_text(mid_x + offset_x, mid_y + offset_y, text=label, fill=DIM_COLOR,
+                      font=("Helvetica", 8, "bold"), anchor="center")
+
+
 def _draw_feed_point(canvas, x, y, r):
     """Feedpoint: the glow dot plus a crisp white ring around it, so it
     reads as 'the feed' rather than just another junction dot."""
@@ -138,13 +152,13 @@ def _draw_balun_box(canvas, feed_x, feed_y, box_x, box_y, text):
     """Balun/unun/choke: a dashed leader line from the feedpoint to a small
     component-box symbol carrying the label -- like a part inserted in the
     feedline on a real schematic, not just floating text."""
-    canvas.create_line(feed_x, feed_y, box_x, box_y, fill=AMBER, width=1, dash=(3, 2))
-    font = ("Helvetica", 10, "bold")
-    text_id = canvas.create_text(box_x, box_y, text=text, fill="#1a1a1a", font=font, anchor="center")
+    canvas.create_line(feed_x, feed_y, box_x, box_y, fill=AMBER, width=2, dash=(3, 2))
+    font = ("Helvetica", 8, "bold")
+    text_id = canvas.create_text(box_x, box_y, text=text, fill=PANEL_BG, font=font, anchor="center")
     bbox = canvas.bbox(text_id)
-    pad = 5
+    pad = 6
     _rounded_box(canvas, bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad,
-                 radius=6, fill=AMBER, outline="#1a1a1a", width=1.5)
+                 radius=6, fill=AMBER, outline=AMBER, width=2)
     canvas.tag_raise(text_id)
 
 
@@ -157,13 +171,14 @@ def _draw_tag_box(canvas, anchor_x, anchor_y, box_x, box_y, text, kind):
     leader line so the box itself can sit well clear of the feedpoint and
     other labels without losing its meaning."""
     color = _TAG_BOX_COLORS.get(kind, AMBER)
-    canvas.create_line(anchor_x, anchor_y, box_x, box_y, fill=color, width=1, dash=(3, 2))
-    font = ("Helvetica", 10, "bold")
-    text_id = canvas.create_text(box_x, box_y, text=text, fill="#1a1a1a", font=font, anchor="center")
+    # Use exact positions - no scaling multiplication
+    canvas.create_line(anchor_x, anchor_y, box_x, box_y, fill=color, width=2, dash=(3, 2))
+    font = ("Helvetica", 8, "bold")
+    text_id = canvas.create_text(box_x, box_y, text=text, fill=PANEL_BG, font=font, anchor="center")
     bbox = canvas.bbox(text_id)
-    pad = 4
+    pad = 5
     _rounded_box(canvas, bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad,
-                 radius=5, fill=color, outline="#1a1a1a", width=1.2)
+                 radius=5, fill=color, outline=color, width=1.5)
     canvas.tag_raise(text_id)
 
 
@@ -188,7 +203,7 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
         _draw_dim_line(canvas, tx(x1), ty(y1), tx(x2), ty(y2))
 
     for x, y, text, size, bold, align in scene.texts:
-        font = ("Helvetica", max(int(size * scale * 1.45), 11), "bold" if bold else "normal")
+        font = ("Helvetica", int(size), "bold" if bold else "normal")
         anchor = "ne" if align == "right" else "nw"
         canvas.create_text(tx(x), ty(y), text=text, fill=FG, font=font, anchor=anchor)
 
@@ -200,6 +215,9 @@ def render_scene(canvas: tk.Canvas, scene: Scene, scale: float = 1.0, ox: float 
 
     for anchor_x, anchor_y, box_x, box_y, text, kind in scene.tag_boxes:
         _draw_tag_box(canvas, tx(anchor_x), ty(anchor_y), tx(box_x), ty(box_y), text, kind)
+
+    for x1, y1, x2, y2, label in scene.element_dims:
+        _draw_element_dim(canvas, tx(x1), ty(y1), tx(x2), ty(y2), label)
 
 
 def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title: str, not_to_scale_note: str):
@@ -216,6 +234,10 @@ def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title:
     header.pack(fill="x", padx=12, pady=(10, 6))
     note = tk.Label(header, text=not_to_scale_note, bg=BG, fg=AMBER, font=("Helvetica", 9, "italic"))
     note.pack(side="left")
+
+    exit_btn = RoundedButton(header, "Exit", win.destroy,
+                             PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
+    exit_btn.pack(side="right", padx=(6, 0))
 
     mode = tk.StringVar(value="2d")
 
@@ -268,8 +290,8 @@ def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title:
         def _restyle():
             for name, btn in (("2d", btn_2d), ("3d", btn_3d)):
                 active = mode.get() == name
-                btn._bg = AMBER if active else PANEL_BG
-                btn._fg = "#1a1a1a" if active else AMBER
+                btn._bg = CYAN if active else PANEL_BG
+                btn._fg = PANEL_BG if active else CYAN
                 btn._render()
 
         def set_mode(m):
@@ -278,9 +300,9 @@ def show_drawing(parent: tk.Widget, design, units: str, lang: str, window_title:
             render()
 
         btn_2d = RoundedButton(toggle, text="2D", command=lambda: set_mode("2d"),
-                                bg=AMBER, fg="#1a1a1a", active_bg="#ffcb4d", font=("Helvetica", 9, "bold"))
+                                bg=CYAN, fg=PANEL_BG, active_bg="#00e6ff", font=("Helvetica", 9, "bold"))
         btn_3d = RoundedButton(toggle, text="3D", command=lambda: set_mode("3d"),
-                                bg=PANEL_BG, fg=AMBER, active_bg=AMBER_DIM, font=("Helvetica", 9, "bold"))
+                                bg=PANEL_BG, fg=CYAN, active_bg=CYAN_DIM, font=("Helvetica", 9, "bold"))
         btn_2d.pack(side="left", padx=(0, 6))
         btn_3d.pack(side="left")
 

@@ -15,6 +15,7 @@ def _load(name: str) -> dict:
 
 BANDS_MHZ = {k: tuple(v) for k, v in _load("bands.json").items()}
 CABLES = _load("cables.json")
+WIRES = _load("wires.json")
 ANTENNA_TYPES = _load("antenna_types.json")
 
 # Antenna types that share a physical shape but come in different wavelength
@@ -70,6 +71,12 @@ def cable_velocity_factor(cable_name: str) -> float:
     if cable_name not in CABLES:
         raise ValueError(f"Unknown cable '{cable_name}'. Known cables: {', '.join(CABLES)}")
     return CABLES[cable_name]["velocity_factor"]
+
+
+def wire_velocity_factor(wire_name: str) -> float:
+    if wire_name not in WIRES:
+        raise ValueError(f"Unknown wire '{wire_name}'. Known wires: {', '.join(WIRES)}")
+    return WIRES[wire_name]["velocity_factor"]
 
 
 def antenna_type_label(antenna_type: str, lang: str = "en") -> str:

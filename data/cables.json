@@ -1,62 +1,266 @@
 {
-  "RG-58": {
+  "RG-58/U": {
     "velocity_factor": 0.66,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Thin, flexible, higher loss -- fine for short runs or low power"
+    "notes": "Massief PE - Zeer veel gebruikt"
   },
-  "RG-58 foam": {
-    "velocity_factor": 0.535,
-    "impedance_ohms": 50,
-    "type": "coax",
-    "notes": "Foam dielectric variant of RG-58"
-  },
-  "RG-213": {
+  "RG-58 C/U": {
     "velocity_factor": 0.66,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Thicker than RG-58, lower loss, common general-purpose ham coax"
+    "notes": "Massief PE"
   },
-  "RG-8": {
+  "RG-58 Foam": {
+    "velocity_factor": 0.80,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE - Afhankelijk van fabrikant"
+  },
+  "RG-59": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 75,
+    "type": "coax",
+    "notes": "Massief PE - TV/coax"
+  },
+  "RG-59 Foam": {
+    "velocity_factor": 0.80,
+    "impedance_ohms": 75,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "RG-8/U": {
     "velocity_factor": 0.66,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Similar to RG-213, solid polyethylene dielectric"
+    "notes": "Massief PE - Klassieke dikke coax"
   },
-  "RG-8X": {
-    "velocity_factor": 0.79,
+  "RG-8X (Mini-8)": {
+    "velocity_factor": 0.78,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Foam dielectric, lower loss than RG-58 in a similar thin form factor"
+    "notes": "Foam PE - Populair bij zendamateurs"
   },
-  "RG-214": {
+  "RG-213/U": {
     "velocity_factor": 0.66,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Double-shielded RG-213 equivalent, better shielding for high-RF environments"
+    "notes": "Massief PE - Robuuste HF-kabel"
   },
-  "9913": {
+  "RG-214/U": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Massief PE - Dubbele afscherming"
+  },
+  "RG-142": {
+    "velocity_factor": 0.69,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "PTFE (Teflon) - Hoge temperatuur"
+  },
+  "RG-174": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Massief PE - Dunne coax"
+  },
+  "RG-179": {
+    "velocity_factor": 0.70,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "PTFE"
+  },
+  "RG-188": {
+    "velocity_factor": 0.70,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "PTFE"
+  },
+  "RG-316": {
+    "velocity_factor": 0.70,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "PTFE - Veel gebruikt voor pigtails"
+  },
+  "Aircell 5": {
+    "velocity_factor": 0.82,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Aircell 7": {
+    "velocity_factor": 0.83,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Aircom Plus": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE - Zeer lage demping"
+  },
+  "Ecoflex 10": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE - Populaire HF-kabel"
+  },
+  "Ecoflex 15": {
+    "velocity_factor": 0.87,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Ecoflex 10 Plus": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Hyperflex 5": {
+    "velocity_factor": 0.82,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Hyperflex 7": {
     "velocity_factor": 0.84,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Air-spaced dielectric, low loss, popular for longer coax runs"
+    "notes": "Foam PE"
+  },
+  "Hyperflex 10": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "H-155": {
+    "velocity_factor": 0.79,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE - Veel gebruikt voor VHF/UHF"
+  },
+  "H-2000 Flex": {
+    "velocity_factor": 0.83,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "H-1000": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Belden 9913": {
+    "velocity_factor": 0.84,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Air-spaced PE"
+  },
+  "Belden 8214": {
+    "velocity_factor": 0.66,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Massief PE"
+  },
+  "Belden 9258": {
+    "velocity_factor": 0.78,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LMR-100": {
+    "velocity_factor": 0.80,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LMR-195": {
+    "velocity_factor": 0.80,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LMR-240": {
+    "velocity_factor": 0.84,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LMR-300": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
   },
   "LMR-400": {
     "velocity_factor": 0.85,
     "impedance_ohms": 50,
     "type": "coax",
-    "notes": "Low-loss foam dielectric coax, common for longer runs to a mast-mounted antenna"
+    "notes": "Foam PE - Zeer populair"
+  },
+  "LMR-500": {
+    "velocity_factor": 0.86,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LMR-600": {
+    "velocity_factor": 0.87,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "LDF4-50A (Heliax 1/2\")": {
+    "velocity_factor": 0.88,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam/Air - Professioneel"
+  },
+  "LDF5-50A (Heliax 7/8\")": {
+    "velocity_factor": 0.89,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam/Air"
+  },
+  "CNT-240": {
+    "velocity_factor": 0.84,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE - Japanse equivalent LMR-240"
+  },
+  "CNT-400": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Messi & Paoloni Ultraflex 7": {
+    "velocity_factor": 0.83,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
+  },
+  "Messi & Paoloni Hyperflex 10": {
+    "velocity_factor": 0.85,
+    "impedance_ohms": 50,
+    "type": "coax",
+    "notes": "Foam PE"
   },
   "Ladder line 450": {
     "velocity_factor": 0.95,
     "impedance_ohms": 450,
     "type": "open_wire",
-    "notes": "Window/ladder line, very low loss, needs a balanced feed (tuner with balun)"
+    "notes": "Window/ladder line - Zeer laag verlies"
   },
   "Ladder line 600": {
     "velocity_factor": 0.97,
     "impedance_ohms": 600,
     "type": "open_wire",
-    "notes": "Wide-spaced open-wire line, lowest loss option, bulky to route"
+    "notes": "Open-wire line - Laagste verlies"
   }
 }
