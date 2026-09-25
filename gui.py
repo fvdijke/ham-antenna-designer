@@ -156,6 +156,12 @@ UI_TEXT = {
         "vf_label": "Velocity factor: {vf} ({notes})",
         "wire_vf_label": "VF {vf} -> length x{factor} vs. bare wire ({notes})",
         "region": "IARU region",
+        "btn_smith": "Smith chart",
+        "btn_sweep": "SWR sweep",
+        "btn_pattern": "Radiation pattern",
+        "btn_loss": "Cable loss",
+        "btn_match": "Matching networks",
+        "btn_brief": "Final briefing",
         "custom_freq": "Custom freq (MHz)",
         "custom_freq_hint": "Optional -- overrides the band, calculates for this exact frequency",
         "custom_freq_invalid": "Not a valid frequency -- using the band's default instead",
@@ -191,6 +197,12 @@ UI_TEXT = {
         "vf_label": "Velocity factor (VF): {vf} ({notes})",
         "wire_vf_label": "VF {vf} -> lengte x{factor} t.o.v. blanke draad ({notes})",
         "region": "IARU-regio",
+        "btn_smith": "Smith-kaart",
+        "btn_sweep": "SWR-sweep",
+        "btn_pattern": "Stralingspatroon",
+        "btn_loss": "Kabelverlies",
+        "btn_match": "Aanpasnetwerken",
+        "btn_brief": "Eindrapport",
         "custom_freq": "Eigen freq (MHz)",
         "custom_freq_hint": "Optioneel -- overschrijft de band, rekent op deze exacte frequentie",
         "custom_freq_invalid": "Geen geldige frequentie -- standaardwaarde van de band gebruikt",
@@ -271,11 +283,14 @@ class AntennaDesignerApp(tk.Tk):
         self.option_add("*TCombobox*Listbox.foreground", FG)
         self.option_add("*TCombobox*Listbox.selectBackground", AMBER_DIM)
         self.option_add("*TCombobox*Listbox.selectForeground", "#000000")
-        style.configure("TRadiobutton", background=PANEL_BG, foreground=FG, font=FONT_LABEL)
+        style.configure("TRadiobutton", background=PANEL_BG, foreground=FG, font=FONT_LABEL,
+                        indicatorbackground=PANEL_BG, indicatorforeground=AMBER,
+                        upperbordercolor=AMBER, lowerbordercolor=AMBER, indicatorsize=13)
         style.map(
             "TRadiobutton",
-            indicatorcolor=[("selected", AMBER)],
+            indicatorbackground=[("selected", AMBER), ("active", PANEL_BG)],
             background=[("active", PANEL_BG)],
+            foreground=[("selected", AMBER)],
         )
         style.configure(
             "TEntry",
@@ -449,27 +464,27 @@ class AntennaDesignerApp(tk.Tk):
         chart_buttons_frame = ttk.Frame(self, style="Panel.TFrame")
         chart_buttons_frame.pack(fill="x", padx=14, pady=8)
 
-        self.smith_btn = RoundedButton(chart_buttons_frame, "View Smith Chart", self._show_smith_chart,
+        self.smith_btn = RoundedButton(chart_buttons_frame, self._t("btn_smith"), self._show_smith_chart,
                                        PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.smith_btn.pack(side="left", padx=5)
 
-        self.sweep_btn = RoundedButton(chart_buttons_frame, "View SWR Sweep", self._show_sweep_window,
+        self.sweep_btn = RoundedButton(chart_buttons_frame, self._t("btn_sweep"), self._show_sweep_window,
                                        PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.sweep_btn.pack(side="left", padx=5)
 
-        self.pattern_btn = RoundedButton(chart_buttons_frame, "View Radiation", self._show_radiation_pattern,
+        self.pattern_btn = RoundedButton(chart_buttons_frame, self._t("btn_pattern"), self._show_radiation_pattern,
                                         PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.pattern_btn.pack(side="left", padx=5)
 
-        self.loss_btn = RoundedButton(chart_buttons_frame, "Cable Loss", self._show_cable_loss,
+        self.loss_btn = RoundedButton(chart_buttons_frame, self._t("btn_loss"), self._show_cable_loss,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.loss_btn.pack(side="left", padx=5)
 
-        self.match_btn = RoundedButton(chart_buttons_frame, "Matching", self._show_matching_networks,
+        self.match_btn = RoundedButton(chart_buttons_frame, self._t("btn_match"), self._show_matching_networks,
                                       PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.match_btn.pack(side="left", padx=5)
 
-        self.briefing_btn = RoundedButton(chart_buttons_frame, "Final Briefing", self._show_final_briefing,
+        self.briefing_btn = RoundedButton(chart_buttons_frame, self._t("btn_brief"), self._show_final_briefing,
                                          PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         self.briefing_btn.pack(side="left", padx=5)
 
@@ -624,6 +639,9 @@ class AntennaDesignerApp(tk.Tk):
         self.svg_button.set_text(t["export_svg"])
         self.view_button.set_text(t["view_drawing"])
         self.exit_button.set_text(t["exit"])
+        for attr, key in (("smith_btn", "btn_smith"), ("sweep_btn", "btn_sweep"), ("pattern_btn", "btn_pattern"),
+                          ("loss_btn", "btn_loss"), ("match_btn", "btn_match"), ("briefing_btn", "btn_brief")):
+            getattr(self, attr).set_text(t[key])
         # Re-translate the antenna/wave dropdowns without changing the selected type.
         self.type_combo["values"] = self._primary_choice_values()
         self.type_combo_var.set(_primary_label(self.primary_choice.get(), self.lang.get()))
