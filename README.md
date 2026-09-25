@@ -53,30 +53,40 @@ formulas that are actually sourced.
 
 ## Bands
 
-All HAM bands 160m-70cm, plus broadcast/SWL bands LW, MW, KW (general
-shortwave), VHF, and UHF, plus the license-free/utility bands CB (11m
-Citizens Band), Air (VHF aviation voice), Marine (VHF maritime mobile),
-and PMR446 -- each band dropdown shows its frequency range.
+All HAM bands 160m-70cm (including 60m), with the band edges of IARU
+Region 1 (Europe/Africa/Middle East, default) or Region 2 (the Americas),
+plus the license-free/utility bands CB (11m Citizens Band), Air (VHF
+aviation voice), Marine (VHF maritime mobile) and PMR446. The broadcast/SWL
+ranges LW, MW, KW (general shortwave), VHF and UHF are offered for the
+receive antennas only -- a single design frequency in the middle of e.g.
+1.6-30 MHz means nothing for a resonant transmit antenna.
 
 ## Features
 
-### v2.2.0 - Comprehensive Analysis Suite
+### Analysis tools
 
-- **SWR & Impedance Matching** (4 phases)
-  - SWR Calculator with Smith Chart visualization
-  - Frequency sweep analysis with bandwidth detection
-  - Matching network designer (L, T, Pi networks with component values)
-  - Auto-calculated reflection coefficient & return loss
-  
-- **Radiation Pattern Visualization**
-  - Azimuth polar diagram with antenna pattern
-  - Gain (dBi), Front-to-Back ratio, take-off angle
-  - Pattern visualization for all antenna types
-  
+- **SWR & Impedance Matching**
+  - SWR (complex impedance, as seen on the coax behind the balun/unun) with
+    Smith Chart visualization
+  - SWR sweep of the antenna as built: a resonance model whose Q follows from
+    the wire thickness, showing where the band fits under 2:1
+  - Matching network designer for a real or complex load (enter e.g. 36-j20):
+    every L-network solution plus a low-pass Pi and a high-pass T, each
+    verified by recomputing Zin, with E12 standard values and the SWR they give
+
+- **Radiation Pattern**
+  - Computed from the antenna geometry: standing-wave currents on the wires,
+    Yagi/quad element currents from mutual impedances, ground reflection with
+    real-ground Fresnel coefficients
+  - Azimuth and elevation plots at a chosen height over average ground,
+    perfect ground or free space; gain (dBi/dBd), take-off angle, F/B,
+    -3 dB beamwidth
+
 - **Transmission Line Loss Calculator**
-  - 9+ cable types (RG, LMR, Heliax, specialty cables)
-  - Power budget analysis & efficiency ratings
-  - Cable loss over distance (1.8 MHz - 432 MHz)
+  - All 44 cables with typical datasheet loss (fitted k1*sqrt(f) + k2*f)
+  - Extra loss from SWR on the line (ARRL formula), SWR taken against the
+    cable's own impedance (ladder line 450/600 ohm)
+  - Power budget: power at the antenna, efficiency, EIRP
   
 - **Final Briefing Report**
   - Complete design summary with antenna schema (ASCII art)
@@ -87,39 +97,43 @@ and PMR446 -- each band dropdown shows its frequency range.
 
 - **GUI** (`gui.py`) -- dark background, amber accents, rounded panels,
   matches the HAMIOS look. Antenna type / band / units / language pickers,
-  antenna wire and feed-cable velocity-factor selectors with 22 wire types
-  and 44 cable types, live dynamic calculation, build notes, SVG export, and
-  comprehensive analysis tools.
-- **Antenna Wire Selection** -- 22 wire types (bare copper, Litz, PVC, 
-  Silicone, PTFE, DX-Wire, Copperweld, CAT5/6, etc.) with velocity factors
-  (0.95-0.98). Wire VF is integrated into all antenna calculations to match
-  electrical length to actual wire properties.
+  antenna wire and feed-cable selectors with 22 wire types and 44 cable
+  types, IARU region choice, live dynamic calculation, build notes, SVG
+  export, and comprehensive analysis tools.
+- **Antenna Wire Selection** -- 22 wire types (bare copper, Litz, PVC,
+  Silicone, PTFE, DX-Wire, Copperweld, CAT5/6, etc.). The rules of thumb
+  (468/f, 234/f, 1005/f, ...) are for bare wire and already contain the end
+  effect, so insulation is applied only RELATIVE to bare wire
+  (factor = VF / 0.98: PVC ~0.97, PTFE ~0.99). Beam spacings stay free-space
+  values; only wire dimensions are corrected.
 - **Feed Cable Selection** -- 44 cable types including RG-series, LMR-series,
-  Heliax, and specialty cables with velocity factors (0.66-0.97). Displayed
-  for reference during design.
+  Heliax, and ladder line, with velocity factor, impedance and loss data.
 - **Dynamic Calculations** -- real-time antenna recalculation as you change
   antenna type, band, wire type, cable type, frequency, or units. No manual
   "Calculate" button needed.
-- **In-app drawing viewer** -- glowing amber schematic on a dark,
-  blueprint-grid canvas (not to scale), with a HUD-style corner frame,
-  ground-hatching symbols, and every element, the balun/unun/choke, the
-  feedpoint, and total antenna length clearly marked. A **2D/3D toggle**
-  in the viewer switches to an isometric 3D rendering of the same design
-  (mast + radial fan in a circle, Yagi boom-and-elements in depth, etc.)
-  for antenna types where a 3D view adds something a flat side-view can't.
-- **Balun/Unun Construction Guide** -- comprehensive popup guide with 9
-  transformer ratios (1:1, 2:1, 4:1, 9:1, 16:1, 49:1, 64:1), construction
-  instructions, impedance matching formulas, and material selection by band.
-  Available in English and Dutch.
-- **SVG export** -- black-on-white version of the 2D schematic (graph-paper
-  grid, rounded component boxes, matching corner frame), for printing/sharing.
+- **In-app drawing viewer** -- a schematic of the antenna with the
+  radiator, counterpoise/radials, parasitic elements, feed line (coax or
+  ladder line) to the shack, the balun/unun/choke AT the feedpoint, masts,
+  ropes, insulators and the ground point, each in its own colour and line
+  style. **2D/3D** (cabinet front or top view / isometric) and **Day/Night**
+  (technical drawing on paper / electronics schematic) toggles; the choice is
+  remembered. All text sits in labelled callouts beside the drawing or next
+  to its dimension line -- a layout check keeps text off the drawing.
+- **Balun/Unun Construction Guide** -- 1:1 current balun, 4:1 Guanella,
+  loop matching, 9:1, 49:1 and 64:1 ununs and the loop-on-ground
+  transformer, with turns ratios (impedance ratio = turns ratio squared),
+  cores and material selection. Available in English and Dutch.
+- **SVG export** -- the same schematic as a light situation sketch (lawn,
+  masts, copper wire, blue counterpoise, black coax to a little shack), for
+  printing and sharing.
 - **CLI** -- `antenna_calc.py`, `build_notes.py`, `drawing.py` all run
   standalone with `<antenna_type> <band> --units --lang`.
 - **EN/NL** -- full bilingual support including wire names and balun guide.
   Dutch build notes use authentic HAM jargon (wave, choke, balun, unun, SWR
   stay English, as real Dutch hams say them) instead of literal textbook
   translation.
-- **Settings persistence** -- language and units are remembered across runs.
+- **Settings persistence** -- language, units and IARU region are remembered
+  across runs.
 - **Custom frequency** -- an optional exact-MHz override next to the band
   picker, for designing at a specific spot in (or outside) the band instead
   of the band's midpoint.
@@ -157,11 +171,16 @@ Or just double-click **"Start HAM Antenna Designer.command"** on macOS.
 - `calculators/` -- one module per antenna type, self-registering via
   `registry.py`'s `@register` decorator. Add a type: write one calculator,
   nothing else needs to know it exists.
-- `scene.py` -- geometry math (where every line/label goes) lives here ONCE,
-  as a renderer-agnostic `Scene`. Consumed by both `drawing.py` (SVG) and
-  `canvas_view.py` (in-app dark/amber viewer) -- no duplicated geometry.
+- `schematic.py` -- ONE world model per antenna (roles: radiator,
+  counterpoise, feed line, balun, ground, supports) and the page layout for
+  2D and 3D, including collision-free label placement.
+  `schematic_render.py` -- the night/day/print themes, painted through one
+  painter interface onto a Tk canvas (`canvas_view.py`) or into SVG
+  (`drawing.py`).
 - `build_notes.py` / `format_text.py` -- per-type build advice and summary
   text, dispatched by antenna type.
+- `tests/` -- reference checks against ARRL/Cebik/Kraus values
+  (`python -m unittest discover tests`).
 - `i18n.py` -- all EN/NL strings.
 - `gui.py` / `widgets.py` -- the Tkinter app and its custom rounded-panel /
   rounded-button canvas widgets (ttk's native theming silently drops colors

@@ -13,7 +13,48 @@ def _load(name: str) -> dict:
         return json.load(f)
 
 
-BANDS_MHZ = {k: tuple(v) for k, v in _load("bands.json").items()}
+# Band plans per IARU region. bands.json holds the full list with Region 2
+# edges; bands_region1.json overrides the bands whose edges differ in
+# Region 1 (Europe/Africa/Middle East). BANDS_MHZ is the ACTIVE plan and is
+# updated in place by set_region(), so modules that imported it keep seeing
+# the current values.
+_BANDS_REGION2 = {k: tuple(v) for k, v in _load("bands.json").items()}
+_BANDS_REGION1 = dict(_BANDS_REGION2)
+_BANDS_REGION1.update({k: tuple(v) for k, v in _load("bands_region1.json").items()
+                       if not k.startswith("_")})
+BANDS_BY_REGION = {"1": _BANDS_REGION1, "2": _BANDS_REGION2}
+BANDS_MHZ: dict = dict(_BANDS_REGION1)
+_region = "1"
+
+
+def set_region(region: str) -> None:
+    """Switch the active band plan ("1" = IARU Region 1, "2" = Region 2)."""
+    global _region
+    if region not in BANDS_BY_REGION:
+        raise ValueError(f"Unknown IARU region '{region}'. Known: 1, 2")
+    _region = region
+    BANDS_MHZ.clear()
+    BANDS_MHZ.update(BANDS_BY_REGION[region])
+
+
+def current_region() -> str:
+    return _region
+
+
+# Wide listening ranges, not amateur bands: a single "design frequency" in the
+# middle of e.g. 1.6-30 MHz is meaningless for a resonant transmit antenna, so
+# these are only offered for the receive-only antenna types.
+BROAD_RANGES = {"LW", "MW", "KW", "VHF", "UHF"}
+RECEIVE_TYPES = {"longwire_receive", "discone_receive", "ground_loop_receive"}
+
+
+def bands_for(antenna_type: str) -> list:
+    """Bands that make sense for this antenna type (active region)."""
+    if antenna_type in RECEIVE_TYPES:
+        return list(BANDS_MHZ)
+    return [b for b in BANDS_MHZ if b not in BROAD_RANGES]
+
+
 CABLES = _load("cables.json")
 WIRES = _load("wires.json")
 ANTENNA_TYPES = _load("antenna_types.json")
@@ -77,6 +118,20 @@ def wire_velocity_factor(wire_name: str) -> float:
     if wire_name not in WIRES:
         raise ValueError(f"Unknown wire '{wire_name}'. Known wires: {', '.join(WIRES)}")
     return WIRES[wire_name]["velocity_factor"]
+
+
+# The ham rule-of-thumb constants (468/f, 234/f, 1005/f, ...) are measured on
+# BARE wire: they already contain the ~5 % end-effect shortening. Multiplying
+# them by an absolute velocity factor (0.95-0.98) would shorten the antenna a
+# second time. What insulation actually changes is the extra shortening
+# RELATIVE to bare wire, so the calculators get vf / vf(bare wire).
+BARE_WIRE_VF = 0.98
+
+
+def wire_length_factor(wire_name: str) -> float:
+    """Length correction for insulation, relative to bare wire (bare = 1.00,
+    PVC ~0.97, PE ~0.98, PTFE ~0.99)."""
+    return round(wire_velocity_factor(wire_name) / BARE_WIRE_VF, 4)
 
 
 def antenna_type_label(antenna_type: str, lang: str = "en") -> str:

@@ -2,22 +2,16 @@
 flat on the ground, popular for LW/MW/lower-HF reception.
 
 Formula (documented, not derived/guessed):
-- Total perimeter: receive-only and untuned, same floor-length logic as the
-  long-wire receive antenna -- a quarter-wave (234/f(MHz)) reference at the
-  band's low edge. This lands close to published field reports: a 120 ft
-  loop is commonly cited as performing well at MW, a 250 ft loop better but
-  with a higher noise floor (kk5jy.net LoG writeups, SWLing Post LoG
-  build articles) -- our MW low-edge (0.525 MHz) gives ~446 ft, the same
-  order of magnitude as those field-tested sizes.
-- Feedpoint impedance: a loop lying on the ground has a low impedance that
-  varies a lot with frequency and ground conditions; sources commonly cite
-  a working range of roughly 300-1500 ohms, with ~450 ohms used here as a
-  representative nominal value.
-- Matching: a step-up transformer wound with a ~5:2 turns ratio (~6:1
-  impedance ratio) on a ferrite binocular/toroid core (Fair-Rite #73 mix is
-  commonly cited) -- not a 1:1 choke or a fixed-ratio unun, since the loop's
-  native impedance is far below 50 ohms (the opposite problem from an
-  end-fed long wire).
+- Total perimeter: receive-only and untuned; a LoG is deliberately small
+  (electrically short). Published field reports (kk5jy.net LoG writeups)
+  use roughly 7-9 m (25-30 ft) per side; larger loops pick up more signal
+  but also more noise. Here: 0.1 wavelength at the band's low edge, kept
+  within 20-60 m perimeter (a quarter wave on MW would be ~140 m).
+- Feedpoint impedance: a loop lying on the ground presents a fairly high
+  impedance that varies with frequency and ground conditions; sources cite
+  roughly 300-1500 ohms, with ~450 ohms used here as a representative value.
+- Matching: a 9:1 STEP-DOWN transformer (3:1 turns) on a ferrite
+  binocular/toroid core (Fair-Rite #73 mix is commonly cited): 450 -> 50 ohms.
 """
 
 from data_store import design_frequency, low_frequency
@@ -25,14 +19,18 @@ from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_GROUND_LOOP, BALUN_WHY_GROUND_LO
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
+MIN_PERIMETER_M = 20.0
+MAX_PERIMETER_M = 60.0
+
 
 @register("ground_loop_receive")
-def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     low_mhz = low_frequency(band, freq_mhz)
     freq_mhz = design_frequency(band, freq_mhz)
 
-    total_ft = round((234.0 / low_mhz) * wire_vf, 3)
-    total_m = round(total_ft * METERS_PER_FOOT, 3)
+    tenth_wave_m = 0.1 * 300.0 / low_mhz
+    total_m = round(min(max(tenth_wave_m, MIN_PERIMETER_M), MAX_PERIMETER_M), 3)
+    total_ft = round(total_m / METERS_PER_FOOT, 3)
 
     elements = [Element("loop_wire", total_ft, total_m, "radiator")]
 
@@ -45,8 +43,8 @@ def design_ground_loop(band: str, lang: str = "en", freq_mhz: float = None, wire
         feed_location="side",
         geometry="horizontal_loop",
         balun={
-            "type": BALUN_TYPE_LABELS["stepup_transformer_5_2"][lang],
-            "ratio": "5:2",
+            "type": BALUN_TYPE_LABELS["stepdown_transformer_3_1"][lang],
+            "ratio": "9:1",
             "where": BALUN_WHERE_GROUND_LOOP[lang],
             "why": BALUN_WHY_GROUND_LOOP[lang],
         },

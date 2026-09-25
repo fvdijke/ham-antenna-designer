@@ -24,12 +24,10 @@ def calculate_reflection_coefficient(z_antenna_ohms, z0=50):
     Returns:
         Tuple: (magnitude, phase_degrees)
     """
-    if isinstance(z_antenna_ohms, (int, float)):
-        z_antenna = complex(z_antenna_ohms, 0)
-    else:
-        z_antenna = z_antenna_ohms
-
-    z0_complex = complex(z0, 0)
+    z_antenna = complex(z_antenna_ohms)
+    z0_complex = complex(z0)
+    if z_antenna + z0_complex == 0:
+        return 1.0, 180.0
 
     gamma = (z_antenna - z0_complex) / (z_antenna + z0_complex)
     magnitude = abs(gamma)
@@ -44,18 +42,14 @@ def calculate_swr(z_antenna_ohms, z0=50):
     Calculate Standing Wave Ratio (SWR).
 
     Args:
-        z_antenna_ohms: Antenna impedance (real part only)
+        z_antenna_ohms: Antenna impedance, real (R) or complex (R + jX) --
+            the reactance counts: 50 + j50 ohms is SWR 2.6, not 1.0
         z0: Characteristic impedance (default 50Ω)
 
     Returns:
         SWR ratio (e.g., 1.5 means 1.5:1)
     """
-    if isinstance(z_antenna_ohms, complex):
-        z_r = z_antenna_ohms.real
-    else:
-        z_r = z_antenna_ohms
-
-    gamma_magnitude, _ = calculate_reflection_coefficient(z_r, z0)
+    gamma_magnitude, _ = calculate_reflection_coefficient(z_antenna_ohms, z0)
 
     if gamma_magnitude >= 1.0:
         return float('inf')
@@ -70,15 +64,14 @@ def calculate_return_loss(z_antenna_ohms, z0=50):
 
     Return loss = -20 * log₁₀(|Γ|)
 
-    Negative value means reflection loss (typical).
-    Higher magnitude = better match.
+    Positive number; higher = better match (20 dB is SWR 1.22).
 
     Args:
         z_antenna_ohms: Antenna impedance
         z0: Characteristic impedance (default 50Ω)
 
     Returns:
-        Return loss in dB (typically negative)
+        Return loss in dB
     """
     gamma_magnitude, _ = calculate_reflection_coefficient(z_antenna_ohms, z0)
 
@@ -150,6 +143,22 @@ def impedance_to_swr_table(z_antenna_ohms, z0=50):
         "power_reflected_percent": power_reflected,
         "power_transmitted_percent": power_transmitted,
     }
+
+
+def transformer_ratio(ratio_text) -> float:
+    """Impedance ratio from a balun label such as "49:1" (1.0 when the
+    label is not a ratio, e.g. "-", "n/a" or "1:1")."""
+    try:
+        a, b = str(ratio_text).split(":")
+        return float(a) / float(b)
+    except (ValueError, ZeroDivisionError):
+        return 1.0
+
+
+def coax_side_impedance(design) -> float:
+    """The antenna's feedpoint impedance as the COAX sees it, i.e. after the
+    design's balun/unun (a 2450-ohm EFHW behind its 49:1 unun is 50 ohm)."""
+    return float(design.feedpoint_impedance_ohms) / transformer_ratio(design.balun.get("ratio", "1:1"))
 
 
 def feedpoint_impedance_from_design(design):

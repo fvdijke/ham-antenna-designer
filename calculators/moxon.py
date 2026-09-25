@@ -38,7 +38,7 @@ _DA, _DB = 0.001, 0.07178571429
 
 
 @register("moxon_2_element")
-def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
     wavelength_m = 300.0 / freq_mhz
 
@@ -49,9 +49,12 @@ def design_moxon(band: str, wire_diameter_m: float = DEFAULT_WIRE_DIAMETER_M, la
     b = _BA * x**2 + _BB * x + _BC
     c = _CA * x**2 + _CB * x + _CC
     d = _DA * x + _DB
-    e = b + c + d
 
-    a_m, b_m, c_m, d_m, e_m = (round(v * wavelength_m * wire_vf, 3) for v in (a, b, c, d, e))
+    # Cebik's fractions are for bare wire. Insulation only shortens the WIRE
+    # dimensions (A, B, D); the tip gap C is an air spacing and stays as is.
+    a_m, b_m, d_m = (round(v * wavelength_m * wire_vf, 3) for v in (a, b, d))
+    c_m = round(c * wavelength_m, 3)
+    e_m = round(b_m + c_m + d_m, 3)
 
     driven_total_m = round(a_m + 2 * b_m, 3)
     reflector_total_m = round(a_m + 2 * d_m, 3)

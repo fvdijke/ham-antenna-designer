@@ -7,7 +7,7 @@ Formula (documented, not derived/guessed):
   full wavelength (the same wire principle EFHW antennas already rely on
   when operated on their 2nd harmonic, just designed for as the fundamental
   here instead).
-- Counterpoise: same quarter-wave (234/f) ground-return wire as the
+- Counterpoise: same ~0.05-wavelength (49/f) ground-return wire as the
   half-wave vertical -- still just a return path for the unun, not a
   resonant radial system.
 - Feedpoint impedance: a full-wavelength end-fed point runs even higher
@@ -26,13 +26,16 @@ from registry import register
 
 
 @register("vertical_full_wave")
-def design_full_wave_vertical(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_full_wave_vertical(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
 
     radiator_ft = round((936.0 / freq_mhz) * wire_vf, 3)
     radiator_m = round(radiator_ft * METERS_PER_FOOT, 3)
 
-    counterpoise_ft = round((234.0 / freq_mhz) * wire_vf, 3)
+    # ~0.05 wavelength: a short, deliberately NON-resonant return path for
+    # the unun (a resonant quarter wave would carry large currents and
+    # become part of the radiator).
+    counterpoise_ft = round(0.05 * 984.0 / freq_mhz, 3)
     counterpoise_m = round(counterpoise_ft * METERS_PER_FOOT, 3)
 
     elements = [

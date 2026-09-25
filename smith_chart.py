@@ -123,7 +123,6 @@ def draw_smith_chart_grid(canvas, center: Tuple[float, float], radius: float,
         x1 = cx + (center_gamma - radius_gamma) * radius
         y1 = cy
         x2 = cx + (center_gamma + radius_gamma) * radius
-        y2 = cy
 
         canvas.create_oval(x1, y1 - radius_gamma * radius,
                           x2, y1 + radius_gamma * radius,

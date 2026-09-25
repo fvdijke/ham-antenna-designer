@@ -8,10 +8,11 @@ Formula (documented, not derived/guessed):
   roughly a quarter-wavelength at the lowest frequency of interest -- the
   same 234/f(MHz) constant used for the quarter-wave vertical, repurposed
   here as a floor, not a precision cut. Applied to the selected band's LOW
-  edge, since that's what sets the antenna's low-frequency usefulness.
-- Counterpoise: a short return-path wire, sized the same way the EFHW's
-  counterpoise is (quarter-wave) -- far less critical here than for a
-  transmit antenna, just needs to give the unun a return path.
+  edge, since that's what sets the antenna's low-frequency usefulness, and
+  kept within 10-50 m (a quarter wave at 150 kHz would be ~500 m).
+- Counterpoise: a short return-path wire, 20 % of the wire length, 2-10 m --
+  far less critical here than for a transmit antenna, it just needs to give
+  the unun a return path.
 - Feedpoint impedance: end-fed long wires present a high impedance, commonly
   cited in the 500-1000 ohm range; ~500 ohms is used here as the nominal
   value a 9:1 unun is built around (50 ohm x 9 = 450 ohm).
@@ -24,17 +25,23 @@ from i18n import BALUN_TYPE_LABELS, BALUN_WHERE_LONGWIRE, BALUN_WHY_LONGWIRE
 from models import METERS_PER_FOOT, AntennaDesign, Element
 from registry import register
 
+MIN_LENGTH_M = 10.0
+MAX_LENGTH_M = 50.0
+
 
 @register("longwire_receive")
-def design_longwire_receive(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_longwire_receive(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     low_mhz = low_frequency(band, freq_mhz)
     freq_mhz = design_frequency(band, freq_mhz)
 
-    min_length_ft = round((234.0 / low_mhz) * wire_vf, 3)
-    min_length_m = round(min_length_ft * METERS_PER_FOOT, 3)
+    # Untuned wire: the insulation factor is irrelevant here, and a raw
+    # quarter wave on LW/MW would be hundreds of metres -- keep it buildable.
+    quarter_m = 234.0 / low_mhz * METERS_PER_FOOT
+    min_length_m = round(min(max(quarter_m, MIN_LENGTH_M), MAX_LENGTH_M), 3)
+    min_length_ft = round(min_length_m / METERS_PER_FOOT, 3)
 
-    counterpoise_ft = round((234.0 / low_mhz) * wire_vf, 3)
-    counterpoise_m = round(counterpoise_ft * METERS_PER_FOOT, 3)
+    counterpoise_m = round(min(max(0.2 * min_length_m, 2.0), 10.0), 3)
+    counterpoise_ft = round(counterpoise_m / METERS_PER_FOOT, 3)
 
     elements = [
         Element("radiator", min_length_ft, min_length_m, "radiator"),

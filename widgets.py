@@ -7,6 +7,7 @@ directly on a tk.Canvas sidesteps native theming entirely and also makes
 rounded corners possible, which ttk.Frame can't do.
 """
 
+import os
 import tkinter as tk
 
 
@@ -170,38 +171,22 @@ class RoundedButton(tk.Canvas):
         self._render(hover=False)
 
 
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+_LOGO_SIZES = (20, 32, 40, 64, 128, 256)
+
+
+def logo_image(master, size: int) -> tk.PhotoImage:
+    """The app logo (a Smith chart, match point in the centre) as a
+    PhotoImage, from the pre-rendered anti-aliased PNGs in assets/
+    (tools/make_logo.py)."""
+    best = min(_LOGO_SIZES, key=lambda s: (s < size, abs(s - size)))
+    return tk.PhotoImage(master=master, file=os.path.join(ASSETS_DIR, f"logo_{best}.png"))
+
+
 class LogoCanvas(tk.Canvas):
-    """Small line-drawing app icon -- a circle badge with a signal/lightning
-    stroke through it, amber with the same soft glow halo as the in-app
-    schematic viewer. Purely decorative, placed in the header before the
-    title."""
+    """The app logo in the header, before the title."""
 
-    def __init__(self, parent, bg, core_color, size=36, **kwargs):
+    def __init__(self, parent, bg, core_color=None, size=32, **kwargs):
         super().__init__(parent, width=size, height=size, bg=bg, highlightthickness=0, **kwargs)
-        self._size = size
-        self._glow_layers = glow_layers_for(core_color, bg)
-        self._draw()
-
-    def _glow_line(self, x1, y1, x2, y2, width):
-        for color, extra in self._glow_layers[:-1]:
-            self.create_line(x1, y1, x2, y2, fill=color, width=width + extra, capstyle=tk.ROUND)
-        self.create_line(x1, y1, x2, y2, fill=self._glow_layers[-1][0], width=width, capstyle=tk.ROUND)
-
-    def _glow_oval(self, cx, cy, r, width):
-        bbox = (cx - r, cy - r, cx + r, cy + r)
-        for color, extra in self._glow_layers[:-1]:
-            self.create_oval(*bbox, outline=color, width=width + extra)
-        self.create_oval(*bbox, outline=self._glow_layers[-1][0], width=width)
-
-    def _draw(self):
-        s = self._size
-        cx, cy, r = s * 0.5, s * 0.5, s * 0.40
-        self._glow_oval(cx, cy, r, 1.6)
-        pts = [
-            (cx + s * 0.06, cy - s * 0.26),
-            (cx - s * 0.10, cy + s * 0.02),
-            (cx + s * 0.02, cy + s * 0.02),
-            (cx - s * 0.06, cy + s * 0.26),
-        ]
-        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
-            self._glow_line(x1, y1, x2, y2, 2.0)
+        self._img = logo_image(self, size)
+        self.create_image(size / 2, size / 2, image=self._img)

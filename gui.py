@@ -12,6 +12,7 @@ measurements and a scaled drawing; cutting wire/tubing is done with a tape
 measure against those numbers, not a taped-together paper template.
 """
 
+import math
 import re
 import tkinter as tk
 import tkinter.font as tkfont
@@ -21,28 +22,31 @@ import calculators  # noqa: F401 -- registers all antenna calculator types
 from build_notes import build_advice
 from data_store import (
     BANDS_MHZ, CABLES, WIRES, SHAPE_FAMILIES, STANDALONE_TYPES,
-    antenna_type_for, antenna_type_label, wave_fractions_for, wire_velocity_factor,
+    antenna_type_for, antenna_type_label, bands_for, set_region, wave_fractions_for,
+    wire_length_factor,
 )
 from drawing import draw_antenna
 from format_text import format_summary
 from i18n import SHAPE_FAMILY_LABELS, WAVE_FRACTION_LABELS, WIRE_LABELS
-from registry import REGISTRY, design as design_antenna
+from registry import design as design_antenna
 from settings import load_settings, save_settings
-from widgets import LogoCanvas, RoundedButton, RoundedPanel
+from version import __version__
+from widgets import LogoCanvas, RoundedButton, RoundedPanel, logo_image
 from canvas_view import show_drawing
-from swr_calc import impedance_to_swr_table
+from swr_calc import coax_side_impedance, impedance_to_swr_table
 from smith_chart import (
     draw_smith_chart_grid, plot_impedance_point, plot_swr_circle,
-    complex_to_smith_coords
 )
-from freq_sweep import sweep_antenna_response, calculate_bandwidth
-from radiation_pattern import generate_azimuth_pattern, calculate_gain_description
-from polar_plot import draw_polar_grid, plot_azimuth_pattern
+from freq_sweep import sweep_design
+from radiation_pattern import calculate_gain_description, compute_pattern, default_ground, default_height
+from polar_plot import draw_db_polar
 from transmissionline_loss import (
-    calculate_cable_loss, compare_cables, power_budget_summary, get_all_cable_types
+    cable_impedance, calculate_cable_loss, power_budget_summary, get_all_cable_types
 )
-from matching_networks import suggest_matching_network, calculate_swr_from_impedance
-from popup_text import pt, translate_phrases
+from matching_networks import (
+    calculate_swr_from_impedance, format_impedance, parse_impedance, suggest_matching_network,
+)
+from popup_text import pt
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -75,6 +79,42 @@ def _band_display(band: str) -> str:
     return f"{band} ({low:g}-{high:g} MHz)"
 
 
+# Wire notes in wires.json are English, cable notes in cables.json Dutch:
+# translate phrase by phrase to the UI language.
+_NOTES_NL = {
+    "Budget friendly, common": "Voordelig, veel gebruikt", "Budget option": "Voordelige keuze",
+    "Corrosion resistant": "Corrosiebestendig", "Durable": "Duurzaam", "Easy to bend": "Makkelijk te buigen",
+    "Flexible, many strands": "Soepel, veel aders", "High frequency": "Hoge frequentie",
+    "High strength": "Zeer sterk", "High temperature": "Hoge temperatuur", "High-end": "Topklasse",
+    "Lightweight, affordable": "Licht en betaalbaar", "Professional grade": "Professionele kwaliteit",
+    "Standard option": "Standaardkeuze", "Stiff, mechanically strong": "Stijf, mechanisch sterk",
+    "Strength + insulation": "Sterk + geïsoleerd", "Twisted pair": "Getwist paar", "UV resistant": "UV-bestendig",
+    "Very flexible": "Zeer soepel", "WD-1/TT standard": "WD-1/TT-standaard", "Winding wire": "Wikkeldraad",
+}
+_NOTES_EN = {
+    "Massief PE": "Solid PE", "Afhankelijk van fabrikant": "depends on the manufacturer",
+    "Japanse equivalent LMR-240": "Japanese equivalent of LMR-240", "Populair bij zendamateurs": "popular with hams",
+    "Populaire HF-kabel": "popular HF cable", "Veel gebruikt voor VHF/UHF": "widely used on VHF/UHF",
+    "Zeer lage demping": "very low loss", "Zeer populair": "very popular", "Professioneel": "professional",
+    "Dubbele afscherming": "double shield", "Dunne coax": "thin coax", "Klassieke dikke coax": "classic thick coax",
+    "Robuuste HF-kabel": "rugged HF cable", "TV/coax": "TV coax", "Zeer veel gebruikt": "very widely used",
+    "Laagste verlies": "lowest loss", "Zeer laag verlies": "very low loss", "Hoge temperatuur": "high temperature",
+    "Veel gebruikt voor pigtails": "widely used for pigtails",
+}
+
+
+def _note(text: str, lang: str) -> str:
+    table = _NOTES_EN if lang == "en" else _NOTES_NL
+    if text in table:
+        return table[text]
+    return " - ".join(table.get(part, part) for part in text.split(" - "))
+
+
+def _rl(value) -> str:
+    """Return loss for display: a perfect match has infinite return loss."""
+    return "∞ dB" if value == float("inf") else f"{value} dB"
+
+
 def _wire_label(key: str, lang: str) -> str:
     """Get translated wire name for display."""
     return WIRE_LABELS.get(key, {}).get(lang, key)
@@ -92,8 +132,6 @@ def _wire_key_from_display(display_name: str, lang: str) -> str:
             return key
     return display_name
 
-
-_BAND_DISPLAY_TO_KEY = {_band_display(b): b for b in BANDS_MHZ}
 
 UI_TEXT = {
     "en": {
@@ -116,6 +154,8 @@ UI_TEXT = {
         "saved": "Saved to {path}",
         "error": "Error",
         "vf_label": "Velocity factor: {vf} ({notes})",
+        "wire_vf_label": "VF {vf} -> length x{factor} vs. bare wire ({notes})",
+        "region": "IARU region",
         "custom_freq": "Custom freq (MHz)",
         "custom_freq_hint": "Optional -- overrides the band, calculates for this exact frequency",
         "custom_freq_invalid": "Not a valid frequency -- using the band's default instead",
@@ -149,6 +189,8 @@ UI_TEXT = {
         "saved": "Opgeslagen naar {path}",
         "error": "Fout",
         "vf_label": "Velocity factor (VF): {vf} ({notes})",
+        "wire_vf_label": "VF {vf} -> lengte x{factor} t.o.v. blanke draad ({notes})",
+        "region": "IARU-regio",
         "custom_freq": "Eigen freq (MHz)",
         "custom_freq_hint": "Optioneel -- overschrijft de band, rekent op deze exacte frequentie",
         "custom_freq_invalid": "Geen geldige frequentie -- standaardwaarde van de band gebruikt",
@@ -173,6 +215,9 @@ class AntennaDesignerApp(tk.Tk):
         # --lang (bijv. vanuit HAMIOS) gaat voor de eigen opgeslagen voorkeur
         self.lang = tk.StringVar(value=lang if lang in UI_TEXT else saved["lang"])
         self.units = tk.StringVar(value=saved["units"])
+        self.region = tk.StringVar(value=saved["region"] if saved["region"] in ("1", "2") else "1")
+        set_region(self.region.get())
+        self._band_display_to_key = {}
         self.band = tk.StringVar(value="20m")
         self.primary_choice = tk.StringVar(value="vertical")
         self.wave_fraction = tk.StringVar(value="1/4")
@@ -181,7 +226,10 @@ class AntennaDesignerApp(tk.Tk):
         self.feed_cable = tk.StringVar(value=next(iter(CABLES)))
 
         self._configure_style()
-        self.title(UI_TEXT[self.lang.get()]["window_title"])
+        # window/taskbar icon (also used by every popup window)
+        self._icons = [logo_image(self, 64), logo_image(self, 32)]
+        self.iconphoto(True, *self._icons)
+        self.title(f"{UI_TEXT[self.lang.get()]['window_title']}  v{__version__}")
         self.configure(bg=BG)
 
         self._build_layout()
@@ -310,12 +358,12 @@ class AntennaDesignerApp(tk.Tk):
         self.band_label.grid(row=0, column=2, padx=10, pady=10, sticky="w")
         self.band_combo_var = tk.StringVar(value=_band_display(self.band.get()))
         self.band_combo = ttk.Combobox(
-            controls, textvariable=self.band_combo_var, values=list(_BAND_DISPLAY_TO_KEY), state="readonly", width=20,
+            controls, textvariable=self.band_combo_var, state="readonly", width=20,
         )
         self.band_combo.grid(row=0, column=3, padx=10, pady=10, sticky="w")
         self.band_combo.bind("<<ComboboxSelected>>", self._on_band_change)
 
-        self.custom_freq_label = ttk.Label(controls, text="or/or", style="Panel.TLabel")
+        self.custom_freq_label = ttk.Label(controls, text=self._t("custom_freq"), style="Panel.TLabel")
         self.custom_freq_label.grid(row=1, column=2, padx=10, pady=(0, 10), sticky="w")
         self.custom_freq = tk.StringVar(value="")
         custom_freq_entry = ttk.Entry(controls, textvariable=self.custom_freq, width=20)
@@ -347,6 +395,14 @@ class AntennaDesignerApp(tk.Tk):
         for i, val in enumerate(["en", "nl"]):
             rb = ttk.Radiobutton(lang_frame, text=val.upper(), value=val, variable=self.lang, command=self._on_lang_change)
             rb.grid(row=0, column=i, padx=(0, 6))
+
+        region_frame = ttk.Frame(controls, style="Panel.TFrame")
+        region_frame.grid(row=2, column=4, padx=10, pady=(0, 10), sticky="w")
+        self.region_label = ttk.Label(region_frame, text=self._t("region"), style="Panel.TLabel")
+        self.region_label.grid(row=0, column=0, padx=(0, 8))
+        for i, val in enumerate(["1", "2"]):
+            rb = ttk.Radiobutton(region_frame, text=val, value=val, variable=self.region, command=self._on_region_change)
+            rb.grid(row=0, column=i + 1, padx=(0, 6))
 
         self.wire_label = ttk.Label(controls, text=self._t("antenna_wire"), style="Panel.TLabel")
         self.wire_label.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="w")
@@ -444,7 +500,7 @@ class AntennaDesignerApp(tk.Tk):
     def _update_cable_label(self):
         cable = CABLES[self.feed_cable.get()]
         self.cable_vf_label.config(
-            text=self._t("vf_label").format(vf=cable["velocity_factor"], notes=cable["notes"])
+            text=self._t("vf_label").format(vf=cable["velocity_factor"], notes=_note(cable["notes"], self.lang.get()))
         )
 
     def _update_wire_combo_display(self):
@@ -467,9 +523,11 @@ class AntennaDesignerApp(tk.Tk):
         self._calculate()
 
     def _update_wire_label(self):
-        wire = WIRES[self.antenna_wire.get()]
+        key = self.antenna_wire.get()
+        wire = WIRES[key]
         self.wire_vf_label.config(
-            text=self._t("vf_label").format(vf=wire["velocity_factor"], notes=wire["notes"])
+            text=self._t("wire_vf_label").format(
+                vf=wire["velocity_factor"], factor=f"{wire_length_factor(key):.3f}", notes=_note(wire["notes"], self.lang.get()))
         )
 
     def _refresh_wave_picker(self):
@@ -501,6 +559,26 @@ class AntennaDesignerApp(tk.Tk):
             self.antenna_type.set(antenna_type_for(primary, self.wave_fraction.get()))
         else:
             self.antenna_type.set(primary)
+        self._refresh_band_combo()
+
+    def _refresh_band_combo(self):
+        """Fill the band list for the current antenna type and IARU region.
+        Keeps the selected band when it is still offered, else falls back
+        to 20m (or the first band in the list)."""
+        if not hasattr(self, "band_combo"):
+            return
+        bands = bands_for(self.antenna_type.get())
+        self._band_display_to_key = {_band_display(b): b for b in bands}
+        self.band_combo["values"] = list(self._band_display_to_key)
+        if self.band.get() not in bands:
+            self.band.set("20m" if "20m" in bands else bands[0])
+        self.band_combo_var.set(_band_display(self.band.get()))
+
+    def _on_region_change(self):
+        set_region(self.region.get())
+        save_settings(region=self.region.get())
+        self._refresh_band_combo()
+        self._calculate()
 
     def _on_primary_change(self, event=None):
         self.primary_choice.set(self._primary_choice_from_label(self.type_combo_var.get()))
@@ -518,7 +596,7 @@ class AntennaDesignerApp(tk.Tk):
         self._calculate()
 
     def _on_band_change(self, event=None):
-        self.band.set(_BAND_DISPLAY_TO_KEY[self.band_combo_var.get()])
+        self.band.set(self._band_display_to_key[self.band_combo_var.get()])
         self._calculate()
 
     def _on_units_change(self):
@@ -528,13 +606,14 @@ class AntennaDesignerApp(tk.Tk):
     def _on_lang_change(self):
         save_settings(lang=self.lang.get())
         t = UI_TEXT[self.lang.get()]
-        self.title(t["window_title"])
+        self.title(f"{t['window_title']}  v{__version__}")
         self.title_label.config(text=t["window_title"])
         self.type_label.config(text=t["antenna_type"])
         self.wave_label.config(text=t["wave"])
         self.band_label.config(text=t["band"])
         self.units_label.config(text=t["units"])
         self.lang_label.config(text=t["language"])
+        self.region_label.config(text=t["region"])
         self.wire_label.config(text=t["antenna_wire"])
         self._update_wire_combo_display()
         self.cable_label.config(text=t["feed_cable"])
@@ -550,6 +629,7 @@ class AntennaDesignerApp(tk.Tk):
         self.type_combo_var.set(_primary_label(self.primary_choice.get(), self.lang.get()))
         self._refresh_wave_picker()
         self._update_cable_label()
+        self._update_wire_label()
         self._calculate()
 
     def _parse_custom_freq(self):
@@ -599,7 +679,7 @@ class AntennaDesignerApp(tk.Tk):
         band = self.band.get()
         antenna_type = self.antenna_type.get()
         freq_mhz = self._parse_custom_freq()
-        wire_vf = wire_velocity_factor(self.antenna_wire.get())
+        wire_vf = wire_length_factor(self.antenna_wire.get())
 
         self.design = design_antenna(antenna_type, band, lang=lang, freq_mhz=freq_mhz, wire_vf=wire_vf)
 
@@ -613,7 +693,7 @@ class AntennaDesignerApp(tk.Tk):
         path = filedialog.asksaveasfilename(defaultextension=".svg", filetypes=[("SVG", "*.svg")])
         if not path:
             return
-        dwg = draw_antenna(self.design, units=self.units.get(), lang=self.lang.get())
+        dwg = draw_antenna(self.design, units=self.units.get(), lang=self.lang.get(), cable=self.feed_cable.get())
         dwg.saveas(path)
         messagebox.showinfo(self._t("window_title"), self._t("saved").format(path=path))
 
@@ -624,7 +704,7 @@ class AntennaDesignerApp(tk.Tk):
         label = antenna_type_label(self.antenna_type.get(), lang)
         title = self._t("drawing_window_title").format(label=label, band=self.design.band)
         show_drawing(self, self.design, units=self.units.get(), lang=lang,
-                      window_title=title, not_to_scale_note=self._t("not_to_scale"))
+                      window_title=title, not_to_scale_note=self._t("not_to_scale"), cable=self.feed_cable.get())
 
     def _update_swr_display(self, lang):
         """Update SWR & matching display from design impedance."""
@@ -632,13 +712,13 @@ class AntennaDesignerApp(tk.Tk):
             return
 
         try:
-            feedpoint_z = float(self.design.feedpoint_impedance_ohms)
+            feedpoint_z = coax_side_impedance(self.design)  # after the balun/unun
             swr_data = impedance_to_swr_table(feedpoint_z, z0=50)
 
             # Format SWR display
             swr_text = (
                 f"{self._t('swr_value')}: {swr_data['swr']}:1\n"
-                f"{self._t('return_loss')}: {swr_data['return_loss_db']} dB\n"
+                f"{self._t('return_loss')}: {_rl(swr_data['return_loss_db'])}\n"
                 f"{self._t('gamma')}: {swr_data['gamma_magnitude']:.4f}\n"
                 f"{self._t('power_reflected')}: {swr_data['power_reflected_percent']}%"
             )
@@ -764,7 +844,6 @@ HOE TE GEBRUIKEN:
             popup.geometry("800x800")
             popup.configure(bg=BG)
 
-            lang = self.lang.get()
 
             # Title
             title_label = ttk.Label(popup, text=pt(self.lang.get(), "smith_heading"), style="PanelTitle.TLabel")
@@ -793,7 +872,7 @@ HOE TE GEBRUIKEN:
             draw_smith_chart_grid(canvas, center, radius, grid_color=AMBER_DIM, line_width=1)
 
             # Plot antenna impedance
-            feedpoint_z = float(self.design.feedpoint_impedance_ohms)
+            feedpoint_z = coax_side_impedance(self.design)  # as seen on the coax
             z_complex = complex(feedpoint_z, 0)
 
             plot_impedance_point(canvas, z_complex, center, radius,
@@ -847,9 +926,6 @@ HOE TE GEBRUIKEN:
             return
 
         try:
-            from radiation_pattern import calculate_gain_description
-            from swr_calc import impedance_to_swr_table
-            from transmissionline_loss import calculate_cable_loss
 
             lang = self.lang.get()
             units = self.units.get()
@@ -887,7 +963,7 @@ HOE TE GEBRUIKEN:
             cable_type = self.feed_cable.get()
 
             # Get design data
-            gain_info = calculate_gain_description(self.design.antenna_type)
+            gain_info = calculate_gain_description(self.design)
 
             # Bilingual labels
             if lang == "en":
@@ -901,7 +977,6 @@ HOE TE GEBRUIKEN:
                 units_label_txt = "Units:"
                 lang_label_txt = "Language:"
                 spec_label = "ANTENNA SPECIFICATIONS:"
-                length_label = "Element Lengths:"
                 elec_label = "Electrical Characteristics:"
                 feedpoint_label = "Feedpoint Impedance:"
                 gain_label = "Antenna Gain:"
@@ -934,7 +1009,6 @@ HOE TE GEBRUIKEN:
                 units_label_txt = "Eenheden:"
                 lang_label_txt = "Taal:"
                 spec_label = "ANTENNE SPECIFICATIES:"
-                length_label = "Element Lengtes:"
                 elec_label = "Elektrische Karakteristieken:"
                 feedpoint_label = "Voedingspunt Impedantie:"
                 gain_label = "Antenneversterking:"
@@ -991,42 +1065,42 @@ HOE TE GEBRUIKEN:
             if "vertical" in self.design.antenna_type.lower():
                 briefing += (
                     f"         {pt(lang, 'sch_radial')}\n"
-                    f"    -----┼-----\n"
-                    f"   |     |     |\n"
+                    "    -----┼-----\n"
+                    "   |     |     |\n"
                     f"   |   {pt(lang, 'sch_mast')}    |\n"
-                    f"   |     |     |\n"
+                    "   |     |     |\n"
                     f"    -----⊗----- {pt(lang, 'sch_feedpoint')}\n"
-                    f"   |     |     |\n"
+                    "   |     |     |\n"
                     f"  {pt(lang, 'sch_radials_gp')}\n"
                 )
             elif "dipole" in self.design.antenna_type.lower():
                 briefing += (
                     f"      {pt(lang, 'sch_leg_a'):15s}{pt(lang, 'sch_leg_b')}\n"
-                    f"    =========== ⊗ ===========\n"
+                    "    =========== ⊗ ===========\n"
                     f"    {pt(lang, 'sch_elem1'):14s}{pt(lang, 'sch_elem2')}\n"
-                    f"                  |\n"
+                    "                  |\n"
                     f"              {pt(lang, 'sch_feedpoint')}\n"
-                    f"                  |\n"
+                    "                  |\n"
                     f"              {pt(lang, 'sch_feed_cable')}\n"
                 )
             elif "efhw" in self.design.antenna_type.lower():
                 briefing += (
                     f"  {pt(lang, 'sch_end_high_z')}\n"
-                    f"         |\n"
+                    "         |\n"
                     f"      ======= {pt(lang, 'sch_element')}\n"
-                    f"         |\n"
-                    f"      Unun 9:1\n"
-                    f"         |\n"
+                    "         |\n"
+                    "      Unun 9:1\n"
+                    "         |\n"
                     f"      {pt(lang, 'sch_feedpoint_50')}\n"
-                    f"         |\n"
+                    "         |\n"
                     f"      {pt(lang, 'sch_feed_cable')}\n"
                 )
             else:
                 briefing += (
                     f"   {pt(lang, 'sch_structure')}\n"
-                    f"         |\n"
+                    "         |\n"
                     f"      {pt(lang, 'sch_feedpoint')} ⊗\n"
-                    f"         |\n"
+                    "         |\n"
                     f"      {pt(lang, 'sch_feed_cable')}\n"
                 )
 
@@ -1054,16 +1128,17 @@ HOE TE GEBRUIKEN:
                 f"  {feedpoint_label:25s} {self.design.feedpoint_impedance_ohms:.1f} Ohms\n"
                 f"  {gain_label:25s} {gain_info['gain_dbi']:.2f} dBi\n"
                 f"  {fb_label:25s} {gain_info['f_b_ratio_db']:.1f} dB\n"
-                f"  {toa_label:25s} {gain_info['takeoff_angle_deg']:.0f}°\n"
+                f"  {toa_label:25s} {gain_info['takeoff_angle_deg']}°"
+                f"  ({pt(lang, 'rad_at', h=gain_info['height_m'], g=pt(lang, 'ground_' + gain_info['ground']))})\n"
             )
 
             # SWR info
-            swr_data = impedance_to_swr_table(float(self.design.feedpoint_impedance_ohms), z0=50)
+            swr_data = impedance_to_swr_table(coax_side_impedance(self.design), z0=50)
 
             briefing += (
                 f"\n{matching_label}\n"
                 f"  {swr_label:25s} {swr_data['swr']}:1\n"
-                f"  {rl_label:25s} {swr_data['return_loss_db']} dB\n"
+                f"  {rl_label:25s} {_rl(swr_data['return_loss_db'])}\n"
                 f"  {pr_label:25s} {swr_data['power_reflected_percent']}%\n"
                 f"  {pt_label:25s} {swr_data['power_transmitted_percent']}%\n"
             )
@@ -1100,59 +1175,59 @@ HOE TE GEBRUIKEN:
                 materials_list = (
                     f"  [ ] Wire: {wire_type}\n"
                     f"  [ ] Coaxial cable: {cable_type}\n"
-                    f"  [ ] Tape measure or ruler\n"
-                    f"  [ ] Cutting tool (wire cutter)\n"
-                    f"  [ ] Soldering iron (if needed)\n"
-                    f"  [ ] SWR meter or antenna analyzer\n"
+                    "  [ ] Tape measure or ruler\n"
+                    "  [ ] Cutting tool (wire cutter)\n"
+                    "  [ ] Soldering iron (if needed)\n"
+                    "  [ ] SWR meter or antenna analyzer\n"
                 )
                 assembly_list = (
-                    f"  [ ] Cut all wire elements to calculated lengths (±1%)\n"
-                    f"  [ ] Prepare element supports/insulators\n"
-                    f"  [ ] Assemble antenna structure\n"
-                    f"  [ ] Install feedpoint connector\n"
-                    f"  [ ] Mount balun/unun (if required)\n"
-                    f"  [ ] Connect feed cable\n"
-                    f"  [ ] Test continuity with multimeter\n"
-                    f"  [ ] Install antenna at operating height\n"
-                    f"  [ ] Measure SWR at multiple frequencies\n"
-                    f"  [ ] Document performance baseline\n"
-                    f"  [ ] Make tuning adjustments if needed\n"
+                    "  [ ] Cut all wire elements to calculated lengths (±1%)\n"
+                    "  [ ] Prepare element supports/insulators\n"
+                    "  [ ] Assemble antenna structure\n"
+                    "  [ ] Install feedpoint connector\n"
+                    "  [ ] Mount balun/unun (if required)\n"
+                    "  [ ] Connect feed cable\n"
+                    "  [ ] Test continuity with multimeter\n"
+                    "  [ ] Install antenna at operating height\n"
+                    "  [ ] Measure SWR at multiple frequencies\n"
+                    "  [ ] Document performance baseline\n"
+                    "  [ ] Make tuning adjustments if needed\n"
                 )
                 safety_list = (
-                    f"  • Ensure antenna is clear of power lines\n"
-                    f"  • Ground antenna mast properly\n"
-                    f"  • Never transmit without proper grounding\n"
-                    f"  • Check RF safety compliance (SAR limits)\n"
-                    f"  • Inspect regularly for weather damage\n"
+                    "  • Ensure antenna is clear of power lines\n"
+                    "  • Ground antenna mast properly\n"
+                    "  • Never transmit without proper grounding\n"
+                    "  • Check RF safety compliance (SAR limits)\n"
+                    "  • Inspect regularly for weather damage\n"
                 )
             else:  # Dutch
                 materials_list = (
                     f"  [ ] Draad: {wire_type}\n"
                     f"  [ ] Coaxiale kabel: {cable_type}\n"
-                    f"  [ ] Meetlint of liniaal\n"
-                    f"  [ ] Snijgereedschap (draadknipper)\n"
-                    f"  [ ] Soldeerbout (indien nodig)\n"
-                    f"  [ ] SWR-meter of antenne-analyzer\n"
+                    "  [ ] Meetlint of liniaal\n"
+                    "  [ ] Snijgereedschap (draadknipper)\n"
+                    "  [ ] Soldeerbout (indien nodig)\n"
+                    "  [ ] SWR-meter of antenne-analyzer\n"
                 )
                 assembly_list = (
-                    f"  [ ] Snij alle draadelementen op berekende lengtes (±1%)\n"
-                    f"  [ ] Bereid element-ondersteuningen/isolatoren voor\n"
-                    f"  [ ] Monteer antennestructuur\n"
-                    f"  [ ] Installeer voedingspunt-connector\n"
-                    f"  [ ] Monteer balun/unun (indien vereist)\n"
-                    f"  [ ] Verbind voedingskabel\n"
-                    f"  [ ] Test continuïteit met multimeter\n"
-                    f"  [ ] Installeer antenne op werkingshoogte\n"
-                    f"  [ ] Meet SWR op meerdere frequenties\n"
-                    f"  [ ] Leg de uitgangsprestaties vast\n"
-                    f"  [ ] Maak afstemmingsaanpassingen indien nodig\n"
+                    "  [ ] Snij alle draadelementen op berekende lengtes (±1%)\n"
+                    "  [ ] Bereid element-ondersteuningen/isolatoren voor\n"
+                    "  [ ] Monteer antennestructuur\n"
+                    "  [ ] Installeer voedingspunt-connector\n"
+                    "  [ ] Monteer balun/unun (indien vereist)\n"
+                    "  [ ] Verbind voedingskabel\n"
+                    "  [ ] Test continuïteit met multimeter\n"
+                    "  [ ] Installeer antenne op werkingshoogte\n"
+                    "  [ ] Meet SWR op meerdere frequenties\n"
+                    "  [ ] Leg de uitgangsprestaties vast\n"
+                    "  [ ] Maak afstemmingsaanpassingen indien nodig\n"
                 )
                 safety_list = (
-                    f"  • Zorg dat antenne vrij is van stroomlijnen\n"
-                    f"  • Aard de antennemast correct\n"
-                    f"  • Zend nooit zonder juiste aarding\n"
-                    f"  • Controleer RF-veiligheidsnormen (SAR-limieten)\n"
-                    f"  • Controleer regelmatig op weerschade\n"
+                    "  • Zorg dat antenne vrij is van stroomlijnen\n"
+                    "  • Aard de antennemast correct\n"
+                    "  • Zend nooit zonder juiste aarding\n"
+                    "  • Controleer RF-veiligheidsnormen (SAR-limieten)\n"
+                    "  • Controleer regelmatig op weerschade\n"
                 )
 
             briefing += (
@@ -1170,14 +1245,14 @@ HOE TE GEBRUIKEN:
 
             if lang == "en":
                 briefing += (
-                    f"Design generated by HAM Antenna Designer v2.2\n"
-                    f"Date: 2026-06-29\n"
+                    "Design generated by HAM Antenna Designer v2.2\n"
+                    "Date: 2026-06-29\n"
                     f"{'='*90}\n"
                 )
             else:
                 briefing += (
-                    f"Ontwerp gegenereerd door HAM Antenne Ontwerper v2.2\n"
-                    f"Datum: 2026-06-29\n"
+                    "Ontwerp gegenereerd door HAM Antenne Ontwerper v2.2\n"
+                    "Datum: 2026-06-29\n"
                     f"{'='*90}\n"
                 )
 
@@ -1243,8 +1318,8 @@ HOE TE GEBRUIKEN:
 
             # Load impedance (auto-filled from antenna design)
             ttk.Label(input_frame, text=pt(self.lang.get(), "match_load"), style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
-            load_var = tk.StringVar(value=str(antenna_z))
-            load_entry = ttk.Entry(input_frame, textvariable=load_var, width=10)
+            load_var = tk.StringVar(value=f"{antenna_z:g}")
+            load_entry = ttk.Entry(input_frame, textvariable=load_var, width=16)
             load_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
 
             # Frequency
@@ -1256,20 +1331,16 @@ HOE TE GEBRUIKEN:
             # Calculate button
             def calculate_networks():
                 try:
-                    source = float(source_var.get())
-                    load = float(load_var.get())
-                    freq = float(freq_var.get())
+                    source = float(source_var.get().replace(",", "."))
+                    load = parse_impedance(load_var.get())
+                    freq = float(freq_var.get().replace(",", "."))
 
-                    if source <= 0 or load <= 0 or freq <= 0:
+                    if source <= 0 or load.real <= 0 or freq <= 0:
                         raise ValueError(pt(self.lang.get(), "values_positive"))
 
-                    # Calculate SWR before matching
                     swr_before = calculate_swr_from_impedance(load, source)
-
-                    # Get matching network suggestions
                     networks = suggest_matching_network(source, load, freq)
 
-                    # Update display
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
 
@@ -1277,45 +1348,33 @@ HOE TE GEBRUIKEN:
                     result = (
                         f"{pt(L, 'm_header')}\n"
                         f"{'='*60}\n"
-                        f"{pt(L, 'm_source', v=source)}\n"
-                        f"{pt(L, 'm_load', v=load)}\n"
+                        f"{pt(L, 'm_source', v=f'{source:g}')}\n"
+                        f"{pt(L, 'm_load', v=format_impedance(load))}\n"
                         f"{pt(L, 'm_freq', v=freq)}\n"
-                        f"{pt(L, 'm_swr_before', v=swr_before)}\n\n"
+                        f"{pt(L, 'm_swr_before', v=swr_before)}\n"
                     )
+                    if not networks or swr_before <= 1.0:
+                        result += f"\n{pt(L, 'm_matched')}\n"
 
-                    # Componentregels per netwerktype: (label-sleutel, veld, eenheid)
-                    comp_rows = {
-                        'L-Low':      [("series_inductor", 'l_series_uh', "µH"),
-                                       ("shunt_capacitor", 'c_shunt_pf', "pF")],
-                        'L-High':     [("shunt_inductor", 'l_shunt_uh', "µH"),
-                                       ("series_capacitor", 'c_series_pf', "pF")],
-                        'T-Network':  [("shunt_inductor_1", 'l1_shunt_uh', "µH"),
-                                       ("series_capacitor", 'c_series_pf', "pF"),
-                                       ("shunt_inductor_2", 'l2_shunt_uh', "µH"),
-                                       ("z_mid", 'z_mid_ohm', "Ohms")],
-                        'Pi-Network': [("shunt_capacitor_1", 'c1_shunt_pf', "pF"),
-                                       ("series_inductor", 'l_series_uh', "µH"),
-                                       ("shunt_capacitor_2", 'c2_shunt_pf', "pF"),
-                                       ("z_mid", 'z_mid_ohm', "Ohms")],
-                    }
-                    char_key = {'L-Low': "char_l", 'L-High': "char_l",
-                                'T-Network': "char_t", 'Pi-Network': "char_pi"}
+                    comp_label = {("series", "L"): "series_inductor", ("series", "C"): "series_capacitor",
+                                  ("shunt", "L"): "shunt_inductor", ("shunt", "C"): "shunt_capacitor"}
+                    char_key = {"L": "char_l", "Pi": "char_pi", "T": "char_t"}
 
                     for i, net in enumerate(networks, 1):
-                        result += f"\n{pt(L, 'm_option', i=i, name=net['type'])}\n"
+                        result += f"\n{pt(L, 'm_option', i=i, name=pt(L, 'net_' + net['name']))}\n"
                         result += f"{'-'*60}\n"
-                        result += f"{pt(L, 'm_topology', v=translate_phrases(L, net['topology']))}\n"
                         result += f"{pt(L, 'm_q', v=net['quality_factor'])}\n"
-                        result += f"{pt(L, 'm_description', v=translate_phrases(L, net['description']))}\n"
-
-                        rows = comp_rows.get(net['type'], [])
-                        if rows:
-                            result += f"\n{pt(L, 'm_components')}\n"
-                            for key, field, unit in rows:
-                                result += f"  {pt(L, key)}: {net[field]} {unit}\n"
+                        if 'r_virtual_ohm' in net:
+                            result += f"{pt(L, 'm_rv', v=net['r_virtual_ohm'])}\n"
+                        result += f"\n{pt(L, 'm_components')}\n"
+                        for n, comp in enumerate(net['components'], 1):
+                            label = pt(L, comp_label[(comp['position'], comp['kind'])])
+                            result += (f"  {n}. {label:26s} {comp['display']:>10s}   "
+                                       f"(E12 {comp['e12']:>8s})   X = {comp['reactance_ohm']:+.1f} Ω\n")
+                        result += (f"  {pt(L, 'm_check', z=format_impedance(net['zin']), swr=net['swr'], swr12=net['swr_e12'])}\n")
 
                         result += f"\n{pt(L, 'm_characteristics')}\n"
-                        for line in pt(L, char_key.get(net['type'], "char_l")):
+                        for line in pt(L, char_key[net['type']]):
                             result += f"  • {line}\n"
 
                     result += f"\n{'='*60}\n" + pt(L, 'm_notes')
@@ -1354,16 +1413,18 @@ HOE TE GEBRUIKEN:
     def _show_cable_loss(self):
         """Open Cable Loss Calculator in popup window."""
         try:
-            from swr_calc import impedance_to_swr_table
 
-            lang = self.lang.get()
             freq_mhz = float(self.design.design_freq_mhz) if self.design else 14.0
 
             # Auto-fill from design
             cable_type = self.feed_cable.get()
-            antenna_z = float(self.design.feedpoint_impedance_ohms)
-            swr_data = impedance_to_swr_table(antenna_z, z0=50)
-            swr_value = swr_data['swr']
+            antenna_z = coax_side_impedance(self.design)  # after the balun/unun
+
+            def antenna_swr(cable):
+                # SWR against the line's OWN impedance (450/600 ohm for ladder line)
+                return impedance_to_swr_table(antenna_z, z0=cable_impedance(cable))['swr']
+
+            swr_value = antenna_swr(cable_type)
 
             popup = tk.Toplevel(self)
             popup.title(pt(self.lang.get(), "cable_title"))
@@ -1394,7 +1455,7 @@ HOE TE GEBRUIKEN:
             ttk.Label(input_frame, text=pt(self.lang.get(), "cable_type"), style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
             cable_var = tk.StringVar(value=cable_type)
             cable_combo = ttk.Combobox(input_frame, textvariable=cable_var,
-                                       values=get_all_cable_types(), width=15, state="readonly")
+                                       values=get_all_cable_types(), width=30, state="readonly")
             cable_combo.grid(row=2, column=1, sticky="w", padx=5, pady=3)
 
             # SWR (auto-filled from design)
@@ -1413,33 +1474,23 @@ HOE TE GEBRUIKEN:
 
                     distance_ft = distance_m * 3.28084
 
-                    # Calculate losses
-                    cable_loss = calculate_cable_loss(cable, freq, distance_ft)
-
-                    # SWR loss
-                    if swr > 1.0:
-                        gamma = (swr - 1) / (swr + 1)
-                        swr_loss_db = -10 * __import__('math').log10(1 - gamma**2)
-                    else:
-                        swr_loss_db = 0
-
-                    total_loss = cable_loss + swr_loss_db
-
-                    # Power budget (assume 100W TX)
+                    # Power budget (100 W TX): matched loss + extra loss from
+                    # the SWR on the line (ARRL), tuner/TX matched to the line.
                     power_budget = power_budget_summary(100, cable, freq, distance_m, 2.15, swr)
+                    cable_loss = power_budget['cable_loss_db']
+                    swr_loss_db = power_budget['swr_loss_db']
+                    total_loss = power_budget['total_loss_db']
 
                     # Update info panel
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
 
                     L = self.lang.get()
-                    # Rendement = deel van het vermogen dat de antenne bereikt
-                    # (was: 100 − dat deel, d.w.z. het verloren percentage)
-                    efficiency = 100 * 10 ** (-total_loss / 10)
+                    efficiency = power_budget['efficiency_percent']
                     result_text = (
                         f"{pt(L, 'c_freq', v=freq)}\n"
                         f"{pt(L, 'c_cable', cable=cable, m=distance_m, ft=distance_ft)}\n"
-                        f"{pt(L, 'c_swr', v=swr)}\n\n"
+                        f"{pt(L, 'c_swr', v=swr, z0=cable_impedance(cable))}\n\n"
                         f"{pt(L, 'c_losses')}\n"
                         f"  {pt(L, 'c_cable_loss', v=cable_loss)}\n"
                         f"  {pt(L, 'c_swr_loss', v=swr_loss_db)}\n"
@@ -1447,7 +1498,8 @@ HOE TE GEBRUIKEN:
                         f"{pt(L, 'c_budget')}\n"
                         f"  {pt(L, 'c_power_ant', v=power_budget['power_at_antenna_watts'])}\n"
                         f"  {pt(L, 'c_efficiency', v=efficiency)}\n"
-                        f"  {pt(L, 'c_eirp', v=power_budget['eirp_watts'])}\n"
+                        f"  {pt(L, 'c_eirp', v=power_budget['eirp_watts'])}\n\n"
+                        f"{pt(L, 'c_note')}\n"
                     )
                     info_text.insert(1.0, result_text)
                     info_text.config(state="disabled")
@@ -1474,6 +1526,12 @@ HOE TE GEBRUIKEN:
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=10)
 
+            def on_cable_change(event=None):
+                swr_var.set(str(antenna_swr(cable_var.get())))
+                calculate_loss()
+
+            cable_combo.bind("<<ComboboxSelected>>", on_cable_change)
+
             # Auto-calculate on open
             calculate_loss()
 
@@ -1481,75 +1539,105 @@ HOE TE GEBRUIKEN:
             messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'cable_error')}: {str(e)}")
 
     def _show_radiation_pattern(self):
-        """Open Radiation Pattern polar plot in popup window."""
+        """Radiation pattern popup: azimuth and elevation cuts computed from
+        the design's geometry, at a chosen height over a chosen ground."""
         if not self.design:
             messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
-            antenna_type = self.design.antenna_type
+            design = self.design
             lang = self.lang.get()
 
-            # Generate radiation pattern
-            pattern = generate_azimuth_pattern(antenna_type)
-            gain_info = calculate_gain_description(antenna_type)
-
-            # Create popup
             popup = tk.Toplevel(self)
-            popup.title(pt(lang, "rad_title") + " - " + antenna_type_label(antenna_type, lang))
-            popup.geometry("800x850")
+            popup.title(pt(lang, "rad_title") + " - " + antenna_type_label(design.antenna_type, lang))
+            popup.geometry("820x860")
             popup.configure(bg=BG)
 
-            # Title
-            title_label = ttk.Label(popup, text=pt(lang, "rad_heading"),
-                                    style="PanelTitle.TLabel")
-            title_label.pack(anchor="w", padx=10, pady=(10, 5))
+            ttk.Label(popup, text=pt(lang, "rad_heading"), style="PanelTitle.TLabel").pack(
+                anchor="w", padx=10, pady=(10, 5))
 
-            # Polar plot canvas
-            canvas = tk.Canvas(
-                popup, width=750, height=380, bg=PANEL_BG, highlightthickness=0,
-                relief="flat", borderwidth=0
-            )
-            canvas.pack(padx=10, pady=(5, 5))
+            input_frame = ttk.Frame(popup, style="Panel.TFrame")
+            input_frame.pack(fill="x", padx=10, pady=5)
+            ttk.Label(input_frame, text=pt(lang, "rad_height"), style="Panel.TLabel").grid(
+                row=0, column=0, sticky="w", padx=5, pady=3)
+            height_var = tk.StringVar(value=f"{default_height(design):g}")
+            height_entry = ttk.Entry(input_frame, textvariable=height_var, width=8)
+            height_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(lang, "rad_ground"), style="Panel.TLabel").grid(
+                row=0, column=2, sticky="w", padx=(15, 5), pady=3)
+            ground_keys = ["average", "perfect", "free"]
+            ground_labels = [pt(lang, "ground_" + g) for g in ground_keys]
+            ground_var = tk.StringVar(value=pt(lang, "ground_" + default_ground(design)))
+            ground_combo = ttk.Combobox(input_frame, textvariable=ground_var, values=ground_labels,
+                                        state="readonly", width=18)
+            ground_combo.grid(row=0, column=3, sticky="w", padx=5, pady=3)
 
-            # Draw polar grid and pattern
-            center = (375, 190)
-            radius = 160
+            plots = tk.Frame(popup, bg=BG)
+            plots.pack(padx=10, pady=5)
+            cw, ch = 390, 390
+            az_canvas = tk.Canvas(plots, width=cw, height=ch, bg=PANEL_BG, highlightthickness=0)
+            az_canvas.grid(row=0, column=0, padx=(0, 5))
+            el_canvas = tk.Canvas(plots, width=cw, height=ch, bg=PANEL_BG, highlightthickness=0)
+            el_canvas.grid(row=0, column=1, padx=(5, 0))
 
-            draw_polar_grid(canvas, center, radius, grid_color=AMBER_DIM, text_color=AMBER_DIM)
-            plot_azimuth_pattern(canvas, pattern, center, radius, line_color=AMBER,
-                                line_width=2, fill_color=None)
+            info_label = ttk.Label(popup, text="", style="Panel.TLabel", justify="left")
+            info_label.pack(anchor="w", padx=14, pady=(5, 5))
 
-            # Add antenna label
-            canvas.create_text(center[0], center[1] + radius + 25,
-                              text=pt(lang, "rad_canvas"), fill=FG,
-                              font=("Helvetica", 9, "bold"))
+            def redraw(event=None):
+                try:
+                    h = float(height_var.get().replace(",", "."))
+                except ValueError:
+                    h = default_height(design)
+                    height_var.set(f"{h:g}")
+                ground = ground_keys[ground_labels.index(ground_var.get())]
+                p = compute_pattern(design, max(0.0, h), ground)
 
-            # Information panel
-            info_frame = ttk.Frame(popup, style="Panel.TFrame")
-            info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
+                az_canvas.delete("all")
+                el_canvas.delete("all")
+                az_title = (pt(lang, "rad_az_title_free") if ground == "free"
+                            else pt(lang, "rad_az_title", el=p["azimuth_elevation_deg"]))
+                az_canvas.create_text(cw / 2, 14, text=az_title, fill=FG, font=("Helvetica", 9, "bold"))
+                draw_db_polar(az_canvas, (cw / 2, ch / 2 + 12), 150,
+                              list(enumerate(p["azimuth_cut"])), mode="azimuth",
+                              line_color=AMBER, grid_color="#3a3a3a", text_color=AMBER_DIM)
+                el_canvas.create_text(cw / 2, 14, text=pt(lang, "rad_el_title"), fill=FG,
+                                      font=("Helvetica", 9, "bold"))
+                over_ground = ground != "free"
+                el_center = (cw / 2, ch - 70) if over_ground else (cw / 2, ch / 2 + 12)
+                draw_db_polar(el_canvas, el_center, 165 if over_ground else 150,
+                              list(zip(p["elevation_angles"], p["elevation_cut"])), mode="elevation",
+                              line_color=AMBER, grid_color="#3a3a3a", text_color=AMBER_DIM)
+                if over_ground:
+                    el_canvas.create_text(el_center[0] + 150, el_center[1] + 18, text=pt(lang, "rad_front"),
+                                          fill=AMBER_DIM, font=("Helvetica", 8))
+                    el_canvas.create_text(el_center[0] - 150, el_center[1] + 18, text=pt(lang, "rad_back"),
+                                          fill=AMBER_DIM, font=("Helvetica", 8))
 
-            info_text = pt(lang, "rad_info", g=gain_info['gain_dbi'],
-                           fb=gain_info['f_b_ratio_db'], toa=gain_info['takeoff_angle_deg'])
+                toa = f"{p['takeoff_angle_deg']}°" if p["takeoff_angle_deg"] is not None else pt(lang, "rad_toa_none")
+                fb = f"{p['f_b_ratio_db']:.1f} dB" if p["f_b_ratio_db"] >= 1.0 else "-"
+                bw = f"{p['beamwidth_deg']}°" if p["beamwidth_deg"] else pt(lang, "rad_omni")
+                info_label.config(text=pt(
+                    lang, "rad_info", g=p["gain_dbi"], gd=p["gain_dbd"], toa=toa, fb=fb, bw=bw,
+                    pol=pt(lang, "rad_pol_" + p["polarization"][0])))
 
-            info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
-            info_label.pack(anchor="w", padx=10, pady=(5, 5))
+            height_entry.bind("<Return>", redraw)
+            height_entry.bind("<FocusOut>", redraw)
+            ground_combo.bind("<<ComboboxSelected>>", redraw)
+            RoundedButton(input_frame, pt(lang, "calculate"), redraw, PANEL_BG, AMBER, AMBER_DIM,
+                          font=("Helvetica", 8, "bold")).grid(row=0, column=4, padx=(15, 5))
 
-            # Explanation text
             explanation_text = tk.Text(
-                info_frame, height=8, bg=PANEL_BG, fg=FG, font=("Helvetica", 8),
+                popup, height=9, bg=PANEL_BG, fg=FG, font=("Helvetica", 8),
                 relief="flat", borderwidth=0, padx=10, pady=5, wrap="word", highlightthickness=0
             )
-            explanation_text.pack(fill="both", expand=True)
-
-            explanation = pt(lang, "rad_expl")
-            explanation_text.insert(1.0, explanation)
+            explanation_text.pack(fill="both", expand=True, padx=10)
+            explanation_text.insert(1.0, pt(lang, "rad_expl"))
             explanation_text.config(state="disabled")
 
-            # Close button
-            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
-                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
-            close_btn.pack(pady=(5, 10))
+            RoundedButton(popup, pt(lang, "close"), popup.destroy, PANEL_BG, AMBER, AMBER_DIM,
+                          font=("Helvetica", 8, "bold")).pack(pady=(5, 10))
+            redraw()
 
         except Exception as e:
             messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'rad_error')}: {str(e)}")
@@ -1823,102 +1911,93 @@ PRAKTISCH GEBRUIK:
         try:
             antenna_type = self.antenna_type.get()
             band = self.band.get()
-            wire_vf = wire_velocity_factor(self.antenna_wire.get())
-
-            # Get band frequency range
+            lang = self.lang.get()
             if band not in BANDS_MHZ:
-                messagebox.showwarning(self._t("error"), "Invalid band")
+                messagebox.showwarning(self._t("error"), pt(lang, "sweep_unavailable"))
                 return
 
-            freq_range = BANDS_MHZ[band]
-            freq_start = freq_range[0]
-            freq_end = freq_range[1]
-
-            # Perform sweep
-            sweep = sweep_antenna_response(antenna_type, band, freq_start,
-                                          freq_end, step_mhz=0.1, wire_vf=wire_vf)
-
-            if not sweep or "frequencies" not in sweep:
-                messagebox.showwarning(self._t("error"), pt(self.lang.get(), "sweep_unavailable"))
+            # Sweep the antenna AS DESIGNED (incl. a custom frequency and the
+            # wire factor) across the band.
+            band_lo, band_hi = BANDS_MHZ[band]
+            sweep = sweep_design(self.design, band_lo, band_hi)
+            if "not_applicable" in sweep:
+                messagebox.showinfo(pt(lang, "sweep_title"), pt(lang, "sweep_na_" + sweep["not_applicable"]))
                 return
 
-            # Create popup
             popup = tk.Toplevel(self)
-            popup.title(pt(self.lang.get(), "sweep_title") + " - " + antenna_type_label(antenna_type, self.lang.get()))
+            popup.title(pt(lang, "sweep_title") + " - " + antenna_type_label(antenna_type, lang))
             popup.geometry("850x750")
             popup.configure(bg=BG)
 
-            lang = self.lang.get()
-
-            # Title
             title_label = ttk.Label(popup, text=pt(lang, "sweep_heading"), style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
-            # Canvas for SWR curve
-            canvas = tk.Canvas(
-                popup, width=800, height=380, bg=PANEL_BG, highlightthickness=0,
-                relief="flat", borderwidth=0
-            )
+            canvas_w, canvas_h = 800, 380
+            canvas = tk.Canvas(popup, width=canvas_w, height=canvas_h, bg=PANEL_BG,
+                               highlightthickness=0, relief="flat", borderwidth=0)
             canvas.pack(padx=10, pady=(5, 5))
 
-            # Plot SWR curve
             freqs = sweep["frequencies"]
             swrs = sweep["swr_values"]
+            left, right, top, bottom = 55, 20, 20, 45
+            plot_w = canvas_w - left - right
+            plot_h = canvas_h - top - bottom
+            freq_min, freq_max = freqs[0], freqs[-1]
+            swr_top = 5.0
 
-            canvas_w = 800
-            canvas_h = 380
-            margin = 50
+            def fx(f):
+                return left + (f - freq_min) / (freq_max - freq_min) * plot_w
 
-            freq_min, freq_max = min(freqs), max(freqs)
-            swr_max = min(max(swrs), 5.0)
+            def sy(v):
+                return top + (swr_top - min(max(v, 1.0), swr_top)) / (swr_top - 1.0) * plot_h
 
-            # Draw grid
-            for i in range(0, int(swr_max) + 1):
-                y = canvas_h - margin - (i / swr_max) * (canvas_h - 2 * margin)
-                canvas.create_line(margin, y, canvas_w - margin, y,
-                                  fill=AMBER_DIM, width=0.5, dash=(2, 2))
-                canvas.create_text(15, y, text=str(i), fill=FG,
-                                  font=("Helvetica", 8), anchor="e")
+            # SWR grid 1..5
+            for v in (1, 1.5, 2, 3, 4, 5):
+                y = sy(v)
+                canvas.create_line(left, y, left + plot_w, y, fill=AMBER_DIM, width=1,
+                                   dash=(4, 2) if v == 2 else (1, 3))
+                canvas.create_text(left - 6, y, text=f"{v:g}", fill=FG, font=("Helvetica", 8), anchor="e")
+            # Frequency ticks
+            span = freq_max - freq_min
+            raw = span / 6
+            mag = 10 ** math.floor(math.log10(raw))
+            tick = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
+            f_tick = math.ceil(freq_min / tick) * tick
+            while f_tick <= freq_max + 1e-9:
+                x = fx(f_tick)
+                canvas.create_line(x, top + plot_h, x, top + plot_h + 4, fill=AMBER)
+                canvas.create_text(x, top + plot_h + 14, text=f"{f_tick:.4g}", fill=FG, font=("Helvetica", 8))
+                f_tick += tick
+            # Band edges
+            for f_edge in sweep["band_edges"]:
+                if freq_min <= f_edge <= freq_max:
+                    x = fx(f_edge)
+                    canvas.create_line(x, top, x, top + plot_h, fill="#5a8fd8", width=1, dash=(5, 3))
+            # Axes
+            canvas.create_line(left, top + plot_h, left + plot_w, top + plot_h, fill=AMBER, width=2)
+            canvas.create_line(left, top, left, top + plot_h, fill=AMBER, width=2)
+            canvas.create_text(left + plot_w / 2, canvas_h - 10, text=pt(lang, "sweep_axis"),
+                               fill=FG, font=("Helvetica", 9))
+            canvas.create_text(16, top + plot_h / 2, text="SWR", fill=FG, font=("Helvetica", 9), angle=90)
 
-            # Draw axes
-            canvas.create_line(margin, canvas_h - margin, canvas_w - margin,
-                              canvas_h - margin, fill=AMBER, width=2)
-            canvas.create_line(margin, margin, margin, canvas_h - margin,
-                              fill=AMBER, width=2)
+            # SWR curve
+            pts = []
+            for f, v in zip(freqs, swrs):
+                pts += [fx(f), sy(v)]
+            canvas.create_line(*pts, fill=AMBER, width=2, smooth=False)
 
-            # Axis labels
-            canvas.create_text(canvas_w // 2, canvas_h - 10, text=pt(lang, "sweep_axis"),
-                              fill=FG, font=("Helvetica", 9))
-            canvas.create_text(15, canvas_h // 2, text="SWR", fill=FG,
-                              font=("Helvetica", 9), angle=90)
-
-            # Plot SWR curve
-            for i in range(len(freqs) - 1):
-                x1 = margin + (freqs[i] - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
-                y1 = canvas_h - margin - min(swrs[i], swr_max) / swr_max * (canvas_h - 2 * margin)
-
-                x2 = margin + (freqs[i + 1] - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
-                y2 = canvas_h - margin - min(swrs[i + 1], swr_max) / swr_max * (canvas_h - 2 * margin)
-
-                canvas.create_line(x1, y1, x2, y2, fill=AMBER, width=2)
-
-            # Mark resonance
+            # Resonance (design frequency)
             res_freq = sweep["resonance_freq"]
-            res_x = margin + (res_freq - freq_min) / (freq_max - freq_min) * (canvas_w - 2 * margin)
-            res_y = canvas_h - margin - sweep["min_swr"] / swr_max * (canvas_h - 2 * margin)
-            canvas.create_oval(res_x - 4, res_y - 4, res_x + 4, res_y + 4,
-                              fill=AMBER, outline=AMBER)
+            res_x, res_y = fx(res_freq), sy(sweep["min_swr"])
+            canvas.create_oval(res_x - 4, res_y - 4, res_x + 4, res_y + 4, fill=AMBER, outline=AMBER)
 
-            # Info panel
             info_frame = ttk.Frame(popup, style="Panel.TFrame")
             info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
 
-            bw_low, bw_high = sweep["bandwidth_3db"]
-            bw = bw_high - bw_low
-
-            info_text = pt(lang, "sweep_info", res=res_freq, swr=sweep['min_swr'],
-                           lo=bw_low, hi=bw_high, bw=bw)
-
+            bw = sweep["bandwidth_2"]
+            bw_text = (pt(lang, "sweep_bw", lo=bw[0], hi=bw[1], khz=(bw[1] - bw[0]) * 1000)
+                       if bw else pt(lang, "sweep_bw_none"))
+            info_text = pt(lang, "sweep_info", res=res_freq, swr=sweep["min_swr"], bw=bw_text, q=sweep["q"])
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
             info_label.pack(anchor="w", padx=10, pady=(5, 5))
 
@@ -1948,209 +2027,129 @@ PRAKTISCH GEBRUIK:
         help_text = {
             "en": """BALUN/UNUN CONSTRUCTION GUIDE
 
-1:1 CURRENT BALUN (Dipoles, Balanced Antennas)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: Center-fed dipoles, quad loops, balanced antennas
-Core: FT240-43, FT240-52 (HF bands)
-Construction:
-• Wind 10-15 turns of coax through toroid
-• Connect center to balanced element
-• Connect shield to radial/ground
+The ratio on a balun/unun is its IMPEDANCE ratio. A transformer changes
+impedance by the SQUARE of its turns ratio:
+    Z_antenna = Z_coax x (turns ratio)^2
+    4:1 -> 2:1 turns    9:1 -> 3:1 turns    49:1 -> 7:1 turns    64:1 -> 8:1 turns
 
-1:1 VOLTAGE BALUN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: High impedance antennas (G5RV, multiband doublets)
-Core: Ferrite rod or binocular core
-Primary winding: 10 turns
-Secondary winding: 10 turns (isolated)
+1:1 CURRENT BALUN / CHOKE  (dipoles, beams, quads, verticals)
+------------------------------------------------------------
+Stops RF current on the outside of the coax shield (common mode).
+Build:  10-12 turns of RG-58/RG-316 (or 8 turns RG-213) through an
+        FT240-31 (best below 10 MHz) or FT240-43 (3-30 MHz) toroid.
+        Coax centre to one antenna leg, shield to the other leg.
+Tip:    a voltage (transformer) 1:1 balun does NOT stop common-mode
+        current -- use a current balun.
 
-2:1 UNUN (Matching 50Ω to 200Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: Loop antennas, some end-fed variants
-Construction:
-• Primary: 10 turns on FT240-43
-• Secondary: 5 turns on same core
-• Impedance transformation: Z_out = 4 × Z_in
+4:1 CURRENT BALUN  (50 -> 200 ohm: off-centre-fed dipole)
+------------------------------------------------------------
+Guanella type: two bifilar windings of ~10 turns, each on its own
+FT240-31/43 core; inputs in parallel, outputs in series.
 
-4:1 CURRENT UNUN (Matching 50Ω to 12.5Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: Small loops, some delta loops
-Construction:
-• Primary: 10 turns
-• Secondary: 5 turns
-• For current balun: use parallel secondary windings
-• For unun: use series connection
+LOOPS  (~100-120 ohm: full-wave loop, delta loop)
+------------------------------------------------------------
+Either accept SWR ~2:1 with a 1:1 current balun, or add a quarter-wave
+of 75-ohm coax (length = 0.25 x velocity factor x wavelength) between
+the loop and the 50-ohm feed line: 75^2 / 112 = 50 ohm.
 
-9:1 UNUN (Matching 50Ω to ~450Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: End-fed half-wave antennas, EFHW
-Core: FT240-43, FT240-52
-Construction:
-• Primary: 10 turns (thin wire)
-• Secondary: 3 turns (thicker wire for current handling)
-• Critical for end-fed designs
-• Provides impedance matching + isolation
+9:1 UNUN  (50 -> 450 ohm: random wire, long-wire receive)
+------------------------------------------------------------
+Trifilar winding, 9 turns of three wires on an FT140-43 or FT240-43.
+Not for a half-wave end-fed: that antenna is ~2450 ohm (see 49:1).
 
-16:1 UNUN (Matching 50Ω to 3.1kΩ)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: Random-length end-fed antennas, tuned end-feds
-Core: FT240-43, FT240-52, or FT82-43
-Construction:
-• Primary: 10 turns
-• Secondary: 2-3 turns (for current handling)
-• Turns ratio squared = impedance ratio (4² = 16)
+49:1 UNUN  (50 -> ~2450 ohm: EFHW, half-wave vertical)
+------------------------------------------------------------
+Turns 1:7 -- e.g. 2 primary turns (coax side) and 14 secondary turns
+(antenna side), the primary turns overlapping the start of the secondary.
+Core: FT140-43 for ~100 W SSB, two stacked FT240-43 for more power.
+A 100-150 pF capacitor (rated >= 1 kV) across the coax connector
+improves the match on 10-15 m.
 
-49:1 UNUN (Matching 50Ω to ~2450Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: Long-wire receive antennas, some end-fed designs
-Core: FT240-43 or larger for power handling
-Construction:
-• Primary: 10 turns
-• Secondary: 2 turns (very heavy wire for current)
-• Turns ratio = 7:1 (7² = 49)
-• Excellent for high-impedance loads
+64:1 UNUN  (50 -> ~3200 ohm: end-fed full wave, very high impedance)
+------------------------------------------------------------
+Turns 1:8 -- e.g. 2 : 16 turns on an FT240-43.
 
-64:1 UNUN (Matching 50Ω to 3200Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Use: High-impedance random-wire antennas
-Core: FT240-43 or FT82-43
-Construction:
-• Primary: 10 turns
-• Secondary: 1.25 turns (wrapped half-turn twice)
-• Turns ratio = 8:1 (8² = 64)
-• For very high impedance loads
+LOOP-ON-GROUND RECEIVE  (~450 -> 50 ohm)
+------------------------------------------------------------
+Step-down transformer 9:1 = 3:1 turns, e.g. 9 turns loop side and
+3 turns coax side on a #73-mix binocular core.
 
-IMPEDANCE MATCHING FORMULA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For any transformer ratio N:
-Z_out = Z_in × N²
+MATERIALS
+------------------------------------------------------------
+31 mix:  chokes 1.8-10 MHz        43 mix: 3-30 MHz transformers/chokes
+61 mix:  VHF                      73 mix: receive transformers (LW/MW/HF)
+VHF/UHF: a sleeve (bazooka) balun or ferrite beads on the coax
 
-Examples:
-• 4:1 = 50 × 16 = 800Ω
-• 9:1 = 50 × 81 = 4050Ω
-• 16:1 = 50 × 256 = 12,800Ω
-• 49:1 = 50 × 2401 = 120kΩ
-• 64:1 = 50 × 4096 = 204kΩ
-
-MATERIAL SELECTION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-HF Bands (1.8-30 MHz):  FT240-43 or FT240-52
-VHF/UHF (50-450 MHz):   Smaller cores (FT50-43)
-Low Bands (160m, 80m):  Larger cores for better flux handling
-
-KEY CONSTRUCTION TIPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Use good quality coax (RG-58, RG-213)
-✓ Keep winding wire gauge appropriate for power level
-✓ Wind toroid in same direction for all windings
-✓ Use #18-20 wire for HF bands
-✓ Seal/weatherproof with silicone or epoxy
-✓ Mount in PVC or metal enclosure
-✓ Test with antenna analyzer (if available)
-✓ Add ferrite beads for EMI suppression""",
+CONSTRUCTION TIPS
+------------------------------------------------------------
+- Enamelled copper wire of 1-1.5 mm for 100 W transformers
+- Spread the windings evenly; keep coax-side and antenna-side apart
+- Check the core temperature after a few minutes of full power
+- Weatherproof the box, leave a drain hole at the bottom
+- Verify with an antenna analyzer on a dummy load of the target impedance""",
 
             "nl": """BALUN/UNUN CONSTRUCTIEGIDS
 
-1:1 STROOMBALUN (Dipolen, Gebalanceerde Antennes)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Middengevoed dipolen, quad loops, gebalanceerde antennes
-Kern: FT240-43, FT240-52 (HF-banden)
-Constructie:
-• 10-15 windingen coax door toroid
-• Verbind midden met gebalanceerd element
-• Verbind scherm met radiale/aarde
+De verhouding op een balun/unun is de IMPEDANTIEverhouding. Een transformator
+verandert de impedantie met het KWADRAAT van de windingsverhouding:
+    Z_antenne = Z_coax x (windingsverhouding)^2
+    4:1 -> 2:1 windingen   9:1 -> 3:1   49:1 -> 7:1   64:1 -> 8:1
 
-1:1 SPANNINGSBALUN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Hoge impedantie-antennes (G5RV, multiband doublets)
-Kern: Ferrietstaaaf of binoculaire kern
-Primaire winding: 10 windingen
-Secundaire winding: 10 windingen (geïsoleerd)
+1:1 STROOMBALUN / CHOKE  (dipolen, beams, quads, verticals)
+------------------------------------------------------------
+Stopt HF-stroom op de buitenkant van het coaxscherm (common mode).
+Bouw:   10-12 windingen RG-58/RG-316 (of 8 windingen RG-213) door een
+        FT240-31 (best onder 10 MHz) of FT240-43 (3-30 MHz) toroide.
+        Coaxkern naar de ene antennehelft, scherm naar de andere.
+Tip:    een spannings- (transformator-) 1:1 balun stopt GEEN common-mode
+        stroom -- gebruik een stroombalun.
 
-2:1 UNUN (50Ω naar 200Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Loop antennes, sommige end-fed varianten
-Constructie:
-• Primair: 10 windingen op FT240-43
-• Secundair: 5 windingen op dezelfde kern
-• Impedantietransformatie: Z_uit = 4 × Z_in
+4:1 STROOMBALUN  (50 -> 200 ohm: uit het midden gevoede dipool)
+------------------------------------------------------------
+Guanella-type: twee bifilaire wikkelingen van ~10 windingen, elk op een
+eigen FT240-31/43-kern; ingangen parallel, uitgangen in serie.
 
-4:1 STROOMUNUN (50Ω naar 12,5Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Kleine loops, sommige delta loops
-Constructie:
-• Primair: 10 windingen
-• Secundair: 5 windingen
-• Voor stroombalun: parallel secundaire windingen
-• Voor unun: serieschakeling
+LOOPS  (~100-120 ohm: full-wave loop, delta loop)
+------------------------------------------------------------
+Accepteer SWR ~2:1 met een 1:1 stroombalun, of zet een kwartgolf
+75-ohm coax (lengte = 0,25 x verkortingsfactor x golflengte) tussen de
+loop en de 50-ohm voedingslijn: 75^2 / 112 = 50 ohm.
 
-9:1 UNUN (50Ω naar ~450Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: End-fed halve-golf antennes, EFHW
-Kern: FT240-43, FT240-52
-Constructie:
-• Primair: 10 windingen (dunne draad)
-• Secundair: 3 windingen (dikkere draad voor stroomvermogen)
-• Kritisch voor end-fed designs
-• Biedt impedantietransformatie + isolatie
+9:1 UNUN  (50 -> 450 ohm: random wire, longwire-ontvangst)
+------------------------------------------------------------
+Trifilaire wikkeling, 9 windingen van drie draden op een FT140-43 of FT240-43.
+Niet voor een halvegolf end-fed: die is ~2450 ohm (zie 49:1).
 
-16:1 UNUN (50Ω naar 3,1kΩ)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Random-length end-fed antennes, afgestemde end-feds
-Kern: FT240-43, FT240-52, of FT82-43
-Constructie:
-• Primair: 10 windingen
-• Secundair: 2-3 windingen (voor stroomvermogen)
-• Windingsverhouding kwadraat = impedantieverhouding (4² = 16)
+49:1 UNUN  (50 -> ~2450 ohm: EFHW, halvegolf verticaal)
+------------------------------------------------------------
+Windingen 1:7 -- bijv. 2 primaire windingen (coaxkant) en 14 secundaire
+(antennekant), de primaire over het begin van de secundaire gelegd.
+Kern: FT140-43 voor ~100 W SSB, twee gestapelde FT240-43 voor meer vermogen.
+Een condensator van 100-150 pF (>= 1 kV) over de coaxconnector
+verbetert de aanpassing op 10-15 m.
 
-49:1 UNUN (50Ω naar ~2450Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Ontvangst lange-draad antennes, sommige end-fed designs
-Kern: FT240-43 of groter voor vermogensvermogen
-Constructie:
-• Primair: 10 windingen
-• Secundair: 2 windingen (zeer dikke draad voor stroom)
-• Windingsverhouding = 7:1 (7² = 49)
-• Uitstekend voor hoge-impedantie belastingen
+64:1 UNUN  (50 -> ~3200 ohm: end-fed hele golf, zeer hoge impedantie)
+------------------------------------------------------------
+Windingen 1:8 -- bijv. 2 : 16 windingen op een FT240-43.
 
-64:1 UNUN (50Ω naar 3200Ω)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Gebruik: Hoge-impedantie random-wire antennes
-Kern: FT240-43 of FT82-43
-Constructie:
-• Primair: 10 windingen
-• Secundair: 1,25 windingen (halve windingen tweemaal)
-• Windingsverhouding = 8:1 (8² = 64)
-• Voor zeer hoge impedantie belastingen
+LOOP-ON-GROUND ONTVANGST  (~450 -> 50 ohm)
+------------------------------------------------------------
+Step-down transformator 9:1 = 3:1 windingen, bijv. 9 windingen aan de
+loopkant en 3 aan de coaxkant op een binoculaire kern van #73-materiaal.
 
-IMPEDANTIE TRANSFORMATIE FORMULE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Voor elke transformator verhouding N:
-Z_uit = Z_in × N²
+MATERIAAL
+------------------------------------------------------------
+31-mix:  chokes 1,8-10 MHz        43-mix: 3-30 MHz transformatoren/chokes
+61-mix:  VHF                      73-mix: ontvangsttransformatoren (LG/MG/KG)
+VHF/UHF: een mantel- (bazooka-) balun of ferrietkralen om de coax
 
-Voorbeelden:
-• 4:1 = 50 × 16 = 800Ω
-• 9:1 = 50 × 81 = 4050Ω
-• 16:1 = 50 × 256 = 12.800Ω
-• 49:1 = 50 × 2401 = 120kΩ
-• 64:1 = 50 × 4096 = 204kΩ
-
-MATERIAALKEUZE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-HF-banden (1,8-30 MHz):   FT240-43 of FT240-52
-VHF/UHF (50-450 MHz):     Kleinere kernen (FT50-43)
-Lage banden (160m, 80m):  Grotere kernen voor beter flux
-
-CONSTRUCTIE-TIPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Gebruik kwaliteit-coax (RG-58, RG-213)
-✓ Draaddikte passend aan vermogensniveau
-✓ Wind toroid in dezelfde richting
-✓ Gebruik #18-20 draad voor HF-banden
-✓ Seal met siliconen of epoxy
-✓ Mount in PVC of metalen behuizing
-✓ Test met antenne-analyzer (indien beschikbaar)
-✓ Voeg ferrietparels toe voor EMI-suppressie"""
+CONSTRUCTIETIPS
+------------------------------------------------------------
+- Geëmailleerd koperdraad van 1-1,5 mm voor 100 W-transformatoren
+- Verdeel de windingen gelijkmatig; houd coax- en antennekant uit elkaar
+- Controleer de kerntemperatuur na een paar minuten vol vermogen
+- Maak de behuizing waterdicht, met een afwateringsgaatje onderin
+- Controleer met een antenne-analyzer op een dummy load van de doelimpedantie"""
         }
 
         # Create popup window

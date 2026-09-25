@@ -16,7 +16,7 @@ from registry import register
 
 
 @register("vertical_quarter_wave")
-def design_vertical(band: str, radial_count: int = 4, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_vertical(band: str, radial_count: int = 4, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     if radial_count < 1:
         raise ValueError("radial_count must be at least 1")
 

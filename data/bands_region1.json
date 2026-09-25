@@ -1,0 +1,27 @@
+{
+  "_comment": "IARU Region 1 (Europa, Afrika, Midden-Oosten): afwijkende banddelen t.o.v. bands.json (Region 2)",
+  "160m": [
+    1.81,
+    2.0
+  ],
+  "80m": [
+    3.5,
+    3.8
+  ],
+  "40m": [
+    7.0,
+    7.2
+  ],
+  "6m": [
+    50.0,
+    52.0
+  ],
+  "2m": [
+    144.0,
+    146.0
+  ],
+  "70cm": [
+    430.0,
+    440.0
+  ]
+}

@@ -4,7 +4,7 @@ Formula (documented, not derived/guessed):
 - Radiator length (feet): 468 / f(MHz) -- same half-wave wire length as a
   center-fed dipole; it's still a half-wavelength of wire, just fed at the end
   instead of the center.
-- Counterpoise: a short quarter-wave (234/f) counterpoise wire at the feed end,
+- Counterpoise: a short ~0.05-wavelength (49/f) counterpoise wire at the feed end,
   the standard practical approach to give the unun a return path and reduce
   RF-in-the-shack -- not a resonant radial system like the ground-mounted
   vertical.
@@ -21,13 +21,16 @@ from registry import register
 
 
 @register("efhw")
-def design_efhw(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_efhw(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
 
     radiator_ft = round((468.0 / freq_mhz) * wire_vf, 3)
     radiator_m = round(radiator_ft * METERS_PER_FOOT, 3)
 
-    counterpoise_ft = round((234.0 / freq_mhz) * wire_vf, 3)
+    # ~0.05 wavelength: a short, deliberately NON-resonant return path for
+    # the unun (a resonant quarter wave would carry large currents and
+    # become part of the radiator).
+    counterpoise_ft = round(0.05 * 984.0 / freq_mhz, 3)
     counterpoise_m = round(counterpoise_ft * METERS_PER_FOOT, 3)
 
     elements = [

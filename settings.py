@@ -1,4 +1,4 @@
-"""Persists user-facing GUI settings (language, units) across restarts.
+"""Persists user-facing GUI settings (language, units, IARU region) across restarts.
 
 Stored as JSON in the user's home directory -- not part of the antenna
 calculation engine, purely a GUI convenience.
@@ -9,7 +9,8 @@ from pathlib import Path
 
 SETTINGS_PATH = Path.home() / ".ham_antenna_designer_settings.json"
 
-DEFAULTS = {"lang": "en", "units": "metric"}
+# region: IARU band plan, "1" = Europe/Africa/Middle East, "2" = the Americas
+DEFAULTS = {"lang": "en", "units": "metric", "region": "1", "drawing_theme": "night"}
 
 
 def load_settings() -> dict:

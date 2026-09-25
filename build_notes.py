@@ -28,7 +28,7 @@ from i18n import (
     BUILD_NOTES_YAGI,
     CHOKE_SPEC,
 )
-from models import AntennaDesign
+from models import METERS_PER_FOOT, AntennaDesign
 
 # Rough choke winding guidance by band -- lower bands need more turns of a
 # larger core to present enough common-mode impedance. (turns_toroid, turns_pipe, pipe_size)
@@ -322,7 +322,11 @@ def _advice_discone(design: AntennaDesign, units: str, lang: str) -> str:
             length_cone=_length_str(cone.length_ft, cone.length_m, units),
             length_disc=_length_str(disc.length_ft, disc.length_m, units),
         ), "",
-        t["step2"].format(skirt_count=extra["skirt_count"], cone_angle=extra["cone_angle_deg"]), "",
+        t["step2"].format(
+            skirt_count=extra["skirt_count"], cone_angle=extra["cone_angle_deg"],
+            height_cone=_length_str(extra["cone_height_m"] / METERS_PER_FOOT, extra["cone_height_m"], units),
+            base_cone=_length_str(extra["cone_base_m"] / METERS_PER_FOOT, extra["cone_base_m"], units),
+        ), "",
         t["step3"].format(ohms=f"{design.feedpoint_impedance_ohms:.0f}"), "",
         t["step4"].format(balun_type=design.balun["type"], balun_why=design.balun["why"]), "",
         t["step5"],

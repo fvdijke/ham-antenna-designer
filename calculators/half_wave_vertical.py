@@ -8,7 +8,7 @@ Formula (documented, not derived/guessed):
   end. Running the wire vertically (even just for part of its length)
   gives a lower radiation angle than a purely horizontal EFHW, which is
   the usual reason to mount one this way (single tall support, better DX).
-- Counterpoise: a short quarter-wave (234/f) ground-return wire, same
+- Counterpoise: a short ~0.05-wavelength (49/f) ground-return wire, same
   practical role as the horizontal EFHW's counterpoise -- gives the unun
   a return path, not a resonant radial system.
 - Feedpoint impedance: ~2450 ohms, the same high end-fed value as the
@@ -24,13 +24,16 @@ from registry import register
 
 
 @register("vertical_half_wave")
-def design_half_wave_vertical(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 0.95) -> AntennaDesign:
+def design_half_wave_vertical(band: str, lang: str = "en", freq_mhz: float = None, wire_vf: float = 1.0) -> AntennaDesign:
     freq_mhz = design_frequency(band, freq_mhz)
 
     radiator_ft = round((468.0 / freq_mhz) * wire_vf, 3)
     radiator_m = round(radiator_ft * METERS_PER_FOOT, 3)
 
-    counterpoise_ft = round((234.0 / freq_mhz) * wire_vf, 3)
+    # ~0.05 wavelength: a short, deliberately NON-resonant return path for
+    # the unun (a resonant quarter wave would carry large currents and
+    # become part of the radiator).
+    counterpoise_ft = round(0.05 * 984.0 / freq_mhz, 3)
     counterpoise_m = round(counterpoise_ft * METERS_PER_FOOT, 3)
 
     elements = [

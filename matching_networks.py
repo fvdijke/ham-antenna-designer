@@ -1,274 +1,306 @@
-"""Impedance matching network calculator.
+"""Impedance matching networks: L, Pi and T, for a real source (typically
+50 ohm) and a possibly COMPLEX load (antenna R + jX).
 
-Design L-networks, T-networks, and Pi-networks for impedance matching
-between source (typically 50Ω) and load (antenna impedance).
+Every network is returned as a list of components ordered from the source
+to the load, each either "series" or "shunt" with its reactance X at the
+design frequency (X > 0 = inductor, X < 0 = capacitor). The input impedance
+is then recomputed by cascading the components onto the load, so every
+result carries its own proof (``zin`` should equal the source resistance),
+plus the SWR you get after rounding the parts to E12 standard values.
 
-Matching networks transform impedance for maximum power transfer and
-bandwidth optimization.
+Design equations
+----------------
+L-network (Pozar, Microwave Engineering, ch. 5.1), load Z = R + jX, source Rs:
+  * shunt element at the LOAD side (needs R^2 + X^2 > Rs*R, always when R > Rs):
+        B = (X +- sqrt(R/Rs) * sqrt(R^2 + X^2 - Rs*R)) / (R^2 + X^2)
+        Xs = 1/B + X*Rs/R - Rs/(B*R)
+  * shunt element at the SOURCE side (needs R < Rs):
+        Xs = +-sqrt(R*(Rs - R)) - X
+        B  = +-sqrt((Rs - R)/R) / Rs
+  Both signs are valid solutions; together they give up to four L-networks.
+
+Pi (low-pass, C-L-C to ground) and T (high-pass, series C - shunt L -
+series C, the usual amateur "T-match" tuner) use a virtual resistance Rv
+set by the chosen loaded Q: two back-to-back L-sections, each designed as
+Q_i = sqrt(Rbig/Rsmall - 1). The load reactance is absorbed in the element
+next to the load (shunt for the Pi, series for the T).
 """
 
 import math
+import re
+
+E12 = (1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2)
+
+_EPS = 1e-9
 
 
-def calculate_l_network(z_source: float, z_load: float,
-                       freq_mhz: float) -> dict:
-    """
-    Calculate L-network (single inductor + capacitor) for impedance matching.
+# ---------------------------------------------------------------- helpers
 
-    L-networks have two configurations:
-    1. L-High: Series inductor then shunt capacitor (high Q, narrow bandwidth)
-    2. L-Low: Shunt capacitor then series inductor (low Q, wide bandwidth)
-
-    Args:
-        z_source: Source impedance (typically 50Ω)
-        z_load: Load impedance (antenna impedance)
-        freq_mhz: Frequency in MHz
-
-    Returns:
-        Dict with two L-network options (high and low Q configurations)
-    """
-    if z_source <= 0 or z_load <= 0 or freq_mhz <= 0:
-        return {"error": "Invalid impedance or frequency"}
-
-    omega = 2 * math.pi * freq_mhz * 1e6
-    impedance_ratio = z_load / z_source
-
-    if impedance_ratio < 1:
-        # Load impedance is lower than source - use Low network
-        q_value = math.sqrt((z_source / z_load) - 1)
-
-        # Series inductance (between source and load)
-        l_series_h = q_value * z_source / omega
-        l_series_uh = l_series_h * 1e6
-
-        # Shunt capacitance (at load end)
-        c_shunt_f = 1 / (q_value * z_load * omega)
-        c_shunt_pf = c_shunt_f * 1e12
-
-        return {
-            "type": "L-Low",
-            "topology": "Series L, Shunt C",
-            "quality_factor": round(q_value, 2),
-            "l_series_uh": round(l_series_uh, 2),
-            "c_shunt_pf": round(c_shunt_pf, 2),
-            "description": f"Inductor {l_series_uh:.2f}µH in series, Capacitor {c_shunt_pf:.0f}pF to ground"
-        }
-    else:
-        # Load impedance is higher than source - use High network
-        q_value = math.sqrt((z_load / z_source) - 1)
-
-        # Shunt inductance (at source end)
-        l_shunt_h = z_source / (q_value * omega)
-        l_shunt_uh = l_shunt_h * 1e6
-
-        # Series capacitance (between source and load)
-        c_series_f = 1 / (q_value * z_load * omega)
-        c_series_pf = c_series_f * 1e12
-
-        return {
-            "type": "L-High",
-            "topology": "Shunt L, Series C",
-            "quality_factor": round(q_value, 2),
-            "l_shunt_uh": round(l_shunt_uh, 2),
-            "c_series_pf": round(c_series_pf, 2),
-            "description": f"Inductor {l_shunt_uh:.2f}µH to ground, Capacitor {c_series_pf:.0f}pF in series"
-        }
+def parse_impedance(text) -> complex:
+    """Parse "73", "73+j42", "36-j20", "36 - 20j", "2450,5" -> complex ohms."""
+    if isinstance(text, (int, float, complex)):
+        return complex(text)
+    s = str(text).strip().lower().replace(" ", "").replace(",", ".").replace("i", "j")
+    s = s.replace("ω", "").replace("ohm", "").replace("ohms", "")
+    m = re.fullmatch(r"([+-]?\d+(?:\.\d*)?)?(?:([+-])j?(\d+(?:\.\d*)?)j?)?", s)
+    if not s or not m or (m.group(1) is None and m.group(2) is None):
+        m2 = re.fullmatch(r"([+-]?)j(\d+(?:\.\d*)?)", s)  # pure reactance "j50"
+        if m2:
+            return complex(0, float(m2.group(2)) * (-1 if m2.group(1) == "-" else 1))
+        raise ValueError(f"Cannot read impedance '{text}' (use e.g. 50, 73+j42 or 36-j20)")
+    r = float(m.group(1)) if m.group(1) else 0.0
+    x = 0.0
+    if m.group(2):
+        x = float(m.group(3)) * (-1 if m.group(2) == "-" else 1)
+    return complex(r, x)
 
 
-def calculate_t_network(z_source: float, z_load: float,
-                       freq_mhz: float, q_target: float = 5) -> dict:
-    """
-    Calculate T-network (2 inductors + 1 capacitor) for impedance matching.
-
-    T-networks provide better impedance transformation and wider bandwidth
-    than L-networks due to lower Q factor.
-
-    Args:
-        z_source: Source impedance (typically 50Ω)
-        z_load: Load impedance (antenna impedance)
-        freq_mhz: Frequency in MHz
-        q_target: Target quality factor (default 5, lower Q = wider bandwidth)
-
-    Returns:
-        Dict with T-network component values
-    """
-    if z_source <= 0 or z_load <= 0 or freq_mhz <= 0:
-        return {"error": "Invalid impedance or frequency"}
-
-    omega = 2 * math.pi * freq_mhz * 1e6
-
-    # T-network: Shunt L1, Series C, Shunt L2
-    # Q1 = Q2 = Qtotal / 2 (split Q between inductors)
-    q1 = q_target / 2
-    q2 = q_target / 2
-
-    # Shunt inductance at source (Z1 transformation stage)
-    l1_h = z_source / (q1 * omega)
-    l1_uh = l1_h * 1e6
-
-    # Series capacitance (resonance element)
-    # Impedance at midpoint
-    z_mid = math.sqrt(z_source * z_load)
-    c_series_f = q_target / (z_mid * omega)
-    c_series_pf = c_series_f * 1e12
-
-    # Shunt inductance at load (Z2 transformation stage)
-    l2_h = z_load / (q2 * omega)
-    l2_uh = l2_h * 1e6
-
-    return {
-        "type": "T-Network",
-        "topology": "Shunt L, Series C, Shunt L",
-        "quality_factor": round(q_target, 2),
-        "l1_shunt_uh": round(l1_uh, 2),
-        "c_series_pf": round(c_series_pf, 2),
-        "l2_shunt_uh": round(l2_uh, 2),
-        "z_mid_ohm": round(z_mid, 1),
-        "description": f"L1 {l1_uh:.2f}µH, C {c_series_pf:.0f}pF, L2 {l2_uh:.2f}µH (Q={q_target})"
-    }
+def format_impedance(z: complex) -> str:
+    z = complex(z)
+    sign = "+" if z.imag >= 0 else "-"
+    return f"{z.real:.1f} {sign} j{abs(z.imag):.1f} Ω"
 
 
-def calculate_pi_network(z_source: float, z_load: float,
-                        freq_mhz: float, q_target: float = 5) -> dict:
-    """
-    Calculate Pi-network (2 capacitors + 1 inductor) for impedance matching.
-
-    Pi-networks are popular in amateur radio tuners, provide good filtering,
-    and allow continuous impedance adjustment.
-
-    Args:
-        z_source: Source impedance (typically 50Ω)
-        z_load: Load impedance (antenna impedance)
-        freq_mhz: Frequency in MHz
-        q_target: Target quality factor (default 5)
-
-    Returns:
-        Dict with Pi-network component values
-    """
-    if z_source <= 0 or z_load <= 0 or freq_mhz <= 0:
-        return {"error": "Invalid impedance or frequency"}
-
-    omega = 2 * math.pi * freq_mhz * 1e6
-
-    # Pi-network: Shunt C1, Series L, Shunt C2
-    # Similar structure to T-network but with capacitors
-
-    # Shunt capacitance at source
-    q1 = q_target / 2
-    c1_f = q1 / (z_source * omega)
-    c1_pf = c1_f * 1e12
-
-    # Series inductance (resonance element)
-    z_mid = math.sqrt(z_source * z_load)
-    l_series_h = z_mid / (q_target * omega)
-    l_series_uh = l_series_h * 1e6
-
-    # Shunt capacitance at load
-    q2 = q_target / 2
-    c2_f = q2 / (z_load * omega)
-    c2_pf = c2_f * 1e12
-
-    return {
-        "type": "Pi-Network",
-        "topology": "Shunt C, Series L, Shunt C",
-        "quality_factor": round(q_target, 2),
-        "c1_shunt_pf": round(c1_pf, 2),
-        "l_series_uh": round(l_series_uh, 2),
-        "c2_shunt_pf": round(c2_pf, 2),
-        "z_mid_ohm": round(z_mid, 1),
-        "description": f"C1 {c1_pf:.0f}pF, L {l_series_uh:.2f}µH, C2 {c2_pf:.0f}pF (Q={q_target})"
-    }
+def nearest_e12(value: float) -> float:
+    """Nearest E12 value (in the logarithmic sense) to a positive value."""
+    if value <= 0:
+        return value
+    decade = math.floor(math.log10(value))
+    mant = value / 10 ** decade
+    candidates = list(E12) + [10.0]
+    best = min(candidates, key=lambda e: abs(math.log(e / mant)))
+    return best * 10 ** decade
 
 
-def suggest_matching_network(z_source: float, z_load: float,
-                            freq_mhz: float) -> list:
-    """
-    Suggest best matching networks for given impedances.
-
-    Returns multiple network options (L-network, T-network, Pi-network)
-    for user to choose based on bandwidth requirements.
-
-    Args:
-        z_source: Source impedance
-        z_load: Load impedance
-        freq_mhz: Frequency in MHz
-
-    Returns:
-        List of matching network suggestions
-    """
-    networks = []
-
-    # L-network (simplest, narrowest bandwidth)
-    l_net = calculate_l_network(z_source, z_load, freq_mhz)
-    if "error" not in l_net:
-        networks.append(l_net)
-
-    # T-network (moderate complexity, medium bandwidth)
-    t_net = calculate_t_network(z_source, z_load, freq_mhz, q_target=5)
-    if "error" not in t_net:
-        networks.append(t_net)
-
-    # Pi-network (moderate complexity, good filtering, variable adjustment)
-    pi_net = calculate_pi_network(z_source, z_load, freq_mhz, q_target=5)
-    if "error" not in pi_net:
-        networks.append(pi_net)
-
-    return networks
+def format_inductance(henry: float) -> str:
+    uh = henry * 1e6
+    if uh >= 1000:
+        return f"{uh / 1000:.3g} mH"
+    if uh >= 1:
+        return f"{uh:.3g} µH"
+    return f"{uh * 1000:.3g} nH"
 
 
-def calculate_swr_from_impedance(z_antenna: float, z_source: float = 50) -> float:
-    """Calculate SWR from impedance."""
-    gamma = abs((z_antenna - z_source) / (z_antenna + z_source))
+def format_capacitance(farad: float) -> str:
+    pf = farad * 1e12
+    if pf >= 1e6:
+        return f"{pf / 1e6:.3g} µF"
+    if pf >= 1000:
+        return f"{pf / 1000:.3g} nF"
+    return f"{pf:.3g} pF"
+
+
+def _component(position: str, x: float, omega: float) -> dict:
+    """A series/shunt element with reactance x (ohm) at omega."""
+    if x > 0:
+        value = x / omega
+        return {"position": position, "kind": "L", "reactance_ohm": x, "value": value,
+                "display": format_inductance(value), "e12": format_inductance(nearest_e12(value)),
+                "e12_value": nearest_e12(value)}
+    value = -1 / (omega * x)
+    return {"position": position, "kind": "C", "reactance_ohm": x, "value": value,
+            "display": format_capacitance(value), "e12": format_capacitance(nearest_e12(value)),
+            "e12_value": nearest_e12(value)}
+
+
+def _element_x(comp: dict, omega: float, use_e12: bool) -> float:
+    v = comp["e12_value"] if use_e12 else comp["value"]
+    return omega * v if comp["kind"] == "L" else -1 / (omega * v)
+
+
+def input_impedance(components: list, z_load: complex, omega: float, use_e12: bool = False) -> complex:
+    """Cascade the components (ordered source -> load) onto the load."""
+    z = complex(z_load)
+    for comp in reversed(components):
+        x = _element_x(comp, omega, use_e12)
+        if comp["position"] == "series":
+            z = z + 1j * x
+        else:
+            y = (1 / z if z != 0 else complex(1e12)) + 1 / (1j * x)
+            z = 1 / y if y != 0 else complex(1e12)
+    return z
+
+
+def calculate_swr_from_impedance(z_antenna, z_source: float = 50) -> float:
+    """SWR of a (complex) impedance against a real reference."""
+    z = complex(z_antenna)
+    if z + z_source == 0:
+        return float("inf")
+    gamma = abs((z - z_source) / (z + z_source))
     if gamma >= 1:
-        return float('inf')
-    swr = (1 + gamma) / (1 - gamma)
-    return round(swr, 2)
+        return float("inf")
+    return round((1 + gamma) / (1 - gamma), 2)
+
+
+def nodal_q(components: list, z_load: complex, omega: float) -> float:
+    """Loaded Q of a network: the highest |X|/R seen at any internal node
+    while cascading from the load to the source (bandwidth ~ f / Q)."""
+    z, q = complex(z_load), 0.0
+    for comp in list(reversed(components))[:-1]:
+        z = input_impedance([comp], z, omega)
+        if z.real > 0:
+            q = max(q, abs(z.imag) / z.real)
+    if len(components) == 1:  # a single element: the Q of the load node it cancels
+        q = abs(complex(z_load).imag) / complex(z_load).real
+    return q
+
+
+def _finish(net_type: str, components: list, z_load: complex, rs: float, omega: float) -> dict:
+    components = [c for c in components if abs(c["reactance_ohm"]) < 1e9]
+    q = nodal_q(components, z_load, omega)
+    zin = input_impedance(components, z_load, omega)
+    zin_e12 = input_impedance(components, z_load, omega, use_e12=True)
+    kinds = tuple((c["position"], c["kind"]) for c in components)
+    if net_type == "L":
+        if set(kinds) == {("series", "L"), ("shunt", "C")}:
+            name = "L_lowpass"
+        elif set(kinds) == {("series", "C"), ("shunt", "L")}:
+            name = "L_highpass"
+        else:
+            name = "L_other"
+    else:
+        name = net_type
+    return {
+        "type": net_type,
+        "name": name,
+        "components": components,
+        "quality_factor": round(q, 2),
+        "zin": zin,
+        "swr": calculate_swr_from_impedance(zin, rs),
+        "zin_e12": zin_e12,
+        "swr_e12": calculate_swr_from_impedance(zin_e12, rs),
+    }
+
+
+def _validate(z_source: float, z_load: complex, freq_mhz: float):
+    if z_source <= 0 or freq_mhz <= 0 or complex(z_load).real <= 0:
+        raise ValueError("Source resistance, load resistance and frequency must be positive")
+
+
+# ---------------------------------------------------------------- networks
+
+def calculate_l_networks(z_source: float, z_load, freq_mhz: float) -> list:
+    """All valid L-network solutions (2 to 4) for a real source and a
+    complex load. Empty list when the load already equals the source."""
+    zl = complex(z_load)
+    _validate(z_source, zl, freq_mhz)
+    rs, r, x = float(z_source), zl.real, zl.imag
+    omega = 2 * math.pi * freq_mhz * 1e6
+    if abs(zl - rs) < 1e-6:
+        return []
+    nets = []
+
+    # shunt element across the load, series element toward the source
+    disc = r * r + x * x - rs * r
+    if disc >= 0:
+        for sign in (1, -1):
+            b = (x + sign * math.sqrt(r / rs) * math.sqrt(disc)) / (r * r + x * x)
+            if abs(b) < _EPS:
+                comps = [_component("series", -x, omega)] if abs(x) > _EPS else []
+            else:
+                xs = 1 / b + x * rs / r - rs / (b * r)
+                comps = [_component("shunt", -1 / b, omega)]
+                if abs(xs) > _EPS:
+                    comps.insert(0, _component("series", xs, omega))
+            if comps:
+                nets.append(_finish("L", comps, zl, rs, omega))
+
+    # series element at the load, shunt element across the source
+    if r < rs:
+        for sign in (1, -1):
+            xs = sign * math.sqrt(r * (rs - r)) - x
+            b = sign * math.sqrt((rs - r) / r) / rs
+            comps = [_component("shunt", -1 / b, omega)]
+            if abs(xs) > _EPS:
+                comps.append(_component("series", xs, omega))
+            nets.append(_finish("L", comps, zl, rs, omega))
+
+    # drop numerical duplicates, lowpass first (harmonic suppression)
+    unique, seen = [], set()
+    for n in nets:
+        key = tuple((c["position"], c["kind"], round(c["value"], 15)) for c in n["components"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(n)
+    order = {"L_lowpass": 0, "L_highpass": 1, "L_other": 2}
+    return sorted(unique, key=lambda n: order[n["name"]])
+
+
+def minimum_q(z_source: float, z_load) -> float:
+    """The (fixed) Q of an L-network; a Pi or T needs a higher Q."""
+    zl = complex(z_load)
+    rp = abs(zl) ** 2 / zl.real  # parallel-equivalent resistance
+    lo, hi = min(z_source, zl.real, rp), max(z_source, zl.real, rp)
+    return math.sqrt(hi / lo - 1)
+
+
+def calculate_pi_network(z_source: float, z_load, freq_mhz: float, q_target: float = 5) -> dict:
+    """Low-pass Pi: shunt C (source) - series L - shunt C (load)."""
+    zl = complex(z_load)
+    _validate(z_source, zl, freq_mhz)
+    omega = 2 * math.pi * freq_mhz * 1e6
+    rs = float(z_source)
+    yl = 1 / zl
+    rp, bl = 1 / yl.real, yl.imag  # load as Rp in parallel with susceptance bl
+    q = max(q_target, math.sqrt(max(rs, rp) / min(rs, rp) - 1) * 1.1)
+    rv = max(rs, rp) / (q * q + 1)
+    q1 = math.sqrt(rs / rv - 1)
+    q2 = math.sqrt(rp / rv - 1)
+    comps = [
+        _component("shunt", -1 / (q1 / rs), omega),
+        _component("series", (q1 + q2) * rv, omega),
+    ]
+    b_load = q2 / rp - bl  # absorb the load susceptance
+    if abs(b_load) > _EPS:
+        comps.append(_component("shunt", -1 / b_load, omega))
+    net = _finish("Pi", comps, zl, rs, omega)
+    net["r_virtual_ohm"] = round(rv, 1)
+    return net
+
+
+def calculate_t_network(z_source: float, z_load, freq_mhz: float, q_target: float = 5) -> dict:
+    """High-pass T: series C (source) - shunt L - series C (load)."""
+    zl = complex(z_load)
+    _validate(z_source, zl, freq_mhz)
+    omega = 2 * math.pi * freq_mhz * 1e6
+    rs, r, x = float(z_source), zl.real, zl.imag
+    q = max(q_target, math.sqrt(max(rs, r) / min(rs, r) - 1) * 1.1)
+    rv = min(rs, r) * (q * q + 1)
+    q1 = math.sqrt(rv / rs - 1)
+    q2 = math.sqrt(rv / r - 1)
+    comps = [
+        _component("series", -q1 * rs, omega),
+        _component("shunt", rv / (q1 + q2), omega),
+    ]
+    x_load = -q2 * r - x  # absorb the load reactance
+    if abs(x_load) > _EPS:
+        comps.append(_component("series", x_load, omega))
+    net = _finish("T", comps, zl, rs, omega)
+    net["r_virtual_ohm"] = round(rv, 1)
+    return net
+
+
+def calculate_l_network(z_source: float, z_load, freq_mhz: float) -> dict:
+    """The preferred single L-network (low-pass when possible)."""
+    nets = calculate_l_networks(z_source, z_load, freq_mhz)
+    return nets[0] if nets else {"error": "Load already matched"}
+
+
+def suggest_matching_network(z_source: float, z_load, freq_mhz: float, q_target: float = None) -> list:
+    """All L-network solutions plus a Pi and a T network. The Pi/T Q
+    defaults to max(3, 1.5 x the L-network Q) -- a little above the minimum
+    keeps the parts practical while the bandwidth stays usable."""
+    zl = complex(z_load)
+    nets = calculate_l_networks(z_source, zl, freq_mhz)
+    if q_target is None:
+        q_target = max(3.0, 1.5 * minimum_q(z_source, zl))
+    nets.append(calculate_pi_network(z_source, zl, freq_mhz, q_target))
+    nets.append(calculate_t_network(z_source, zl, freq_mhz, q_target))
+    return nets
 
 
 def standard_component_values(component_value: float, component_type: str = "L") -> str:
-    """
-    Find nearest standard component value (E12 series).
-
-    Args:
-        component_value: Calculated component value
-        component_type: "L" for inductors (µH), "C" for capacitors (pF)
-
-    Returns:
-        Standard value as string
-    """
-    # E12 standard values
+    """Nearest E12 value, formatted. component_value in µH (L) or pF (C)."""
     if component_type == "L":
-        # Inductor values in µH
-        e12_values = [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
-        multipliers = [1, 10, 100, 1000]  # 1µH, 10µH, 100µH, 1000µH (1mH)
-    else:
-        # Capacitor values in pF
-        e12_values = [10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82]
-        multipliers = [1, 10, 100, 1000, 10000]  # pF to µF range
-
-    closest = None
-    min_ratio = float('inf')
-
-    for mult in multipliers:
-        for e12 in e12_values:
-            value = e12 * mult
-            ratio = abs(value - component_value) / component_value
-
-            if ratio < min_ratio:
-                min_ratio = ratio
-                closest = value
-
-    if component_type == "L":
-        if closest >= 1000:
-            return f"{closest/1000:.1f} mH"
-        elif closest >= 1:
-            return f"{closest:.1f} µH"
-        else:
-            return f"{closest*1000:.0f} nH"
-    else:
-        if closest >= 1000:
-            return f"{closest/1000:.2f} µF"
-        elif closest >= 1:
-            return f"{closest:.0f} pF"
-        else:
-            return f"{closest*1000:.0f} nF"
+        return format_inductance(nearest_e12(component_value * 1e-6))
+    return format_capacitance(nearest_e12(component_value * 1e-12))
