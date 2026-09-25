@@ -42,6 +42,7 @@ from transmissionline_loss import (
     calculate_cable_loss, compare_cables, power_budget_summary, get_all_cable_types
 )
 from matching_networks import suggest_matching_network, calculate_swr_from_impedance
+from popup_text import pt, translate_phrases
 
 # Shape families with 2+ wavelength-fraction options get a second "Wave"
 # picker; families with only one fraction (or standalone types like Yagi,
@@ -165,11 +166,12 @@ UI_TEXT = {
 
 
 class AntennaDesignerApp(tk.Tk):
-    def __init__(self):
+    def __init__(self, lang: str | None = None):
         super().__init__()
         self.design = None
         saved = load_settings()
-        self.lang = tk.StringVar(value=saved["lang"])
+        # --lang (bijv. vanuit HAMIOS) gaat voor de eigen opgeslagen voorkeur
+        self.lang = tk.StringVar(value=lang if lang in UI_TEXT else saved["lang"])
         self.units = tk.StringVar(value=saved["units"])
         self.band = tk.StringVar(value="20m")
         self.primary_choice = tk.StringVar(value="vertical")
@@ -733,7 +735,7 @@ HOE TE GEBRUIKEN:
         }
 
         popup = tk.Toplevel(self)
-        popup.title("Smith Chart Explanation")
+        popup.title(pt(self.lang.get(), "smith_expl_title"))
         popup.geometry("700x700")
         popup.configure(bg=BG)
 
@@ -746,26 +748,26 @@ HOE TE GEBRUIKEN:
         text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
         text_widget.config(state="disabled")
 
-        close_btn = RoundedButton(popup, "Close", popup.destroy,
+        close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                  PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         close_btn.pack(pady=10)
 
     def _show_smith_chart(self):
         """Open Smith Chart in popup window."""
         if not self.design:
-            messagebox.showwarning(self._t("error"), "Design antenna first")
+            messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
             popup = tk.Toplevel(self)
-            popup.title("Smith Chart - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
+            popup.title(pt(self.lang.get(), "smith_title") + " - " + antenna_type_label(self.antenna_type.get(), self.lang.get()))
             popup.geometry("800x800")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
 
             # Title
-            title_label = ttk.Label(popup, text="Smith Chart (50Ω) - Impedance Visualization", style="PanelTitle.TLabel")
+            title_label = ttk.Label(popup, text=pt(self.lang.get(), "smith_heading"), style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Canvas for Smith Chart
@@ -779,7 +781,7 @@ HOE TE GEBRUIKEN:
             btn_frame = ttk.Frame(popup, style="Panel.TFrame")
             btn_frame.pack(fill="x", padx=10, pady=(5, 10))
 
-            close_btn = RoundedButton(btn_frame, "Close", popup.destroy,
+            close_btn = RoundedButton(btn_frame, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack()
 
@@ -805,7 +807,7 @@ HOE TE GEBRUIKEN:
 
             # Add labels and info
             canvas.create_text(center[0], center[1] + radius + 20,
-                              text="Smith Chart (50Ω)", fill=FG,
+                              text=pt(self.lang.get(), "smith_canvas"), fill=FG,
                               font=("Helvetica", 10, "bold"))
 
             info_text = (
@@ -826,34 +828,22 @@ HOE TE GEBRUIKEN:
             )
             info_text_widget.pack(fill="both", expand=True)
 
-            explanation = (
-                "SMITH CHART EXPLANATION:\n\n"
-                "• Center point = 50Ω (perfect match, SWR 1:1)\n"
-                "• Your antenna point (AMBER) = your impedance\n"
-                "• Distance from center = mismatch severity\n"
-                "• SWR circle (dashed line) = constant SWR\n"
-                "• Circles = resistance curves\n"
-                "• Arcs = reactance curves\n\n"
-                "INTERPRETATION:\n"
-                "• Closer to center = better match (lower SWR)\n"
-                "• Right side = higher impedance\n"
-                "• Left side = lower impedance\n"
-            )
+            explanation = pt(self.lang.get(), "smith_expl")
             info_text_widget.insert(1.0, explanation)
             info_text_widget.config(state="disabled")
 
             # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
+            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=(0, 10))
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Smith Chart error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'smith_error')}: {str(e)}")
 
     def _show_final_briefing(self):
         """Show comprehensive final briefing with all design parameters and build instructions."""
         if not self.design:
-            messagebox.showwarning(self._t("error"), "Design antenna first")
+            messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
@@ -865,12 +855,12 @@ HOE TE GEBRUIKEN:
             units = self.units.get()
 
             popup = tk.Toplevel(self)
-            popup.title("Final Briefing - Complete Design Summary")
+            popup.title(pt(self.lang.get(), "brief_title"))
             popup.geometry("1000x900")
             popup.configure(bg=BG)
 
             # Title
-            title_label = ttk.Label(popup, text="FINAL BRIEFING - Design Summary & Build Instructions",
+            title_label = ttk.Label(popup, text=pt(self.lang.get(), "brief_heading"),
                                    style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
@@ -949,7 +939,7 @@ HOE TE GEBRUIKEN:
                 feedpoint_label = "Voedingspunt Impedantie:"
                 gain_label = "Antenneversterking:"
                 fb_label = "Voor-naar-Achter:"
-                toa_label = "Straalhhoek:"
+                toa_label = "Afstraalhoek:"
                 matching_label = "Aanpassing Analyse (50Ω lijn):"
                 swr_label = "SWR:"
                 rl_label = "Return Loss:"
@@ -994,50 +984,50 @@ HOE TE GEBRUIKEN:
 
             # Antenna schema ASCII art
             briefing += (
-                f"ANTENNA SCHEMA (Simplified):\n"
+                f"{pt(lang, 'brief_schema')}\n"
                 f"{'-'*90}\n"
             )
 
             if "vertical" in self.design.antenna_type.lower():
                 briefing += (
-                    f"         Radial\n"
+                    f"         {pt(lang, 'sch_radial')}\n"
                     f"    -----┼-----\n"
                     f"   |     |     |\n"
-                    f"   |   Mast    |\n"
+                    f"   |   {pt(lang, 'sch_mast')}    |\n"
                     f"   |     |     |\n"
-                    f"    -----⊗----- Feedpoint\n"
+                    f"    -----⊗----- {pt(lang, 'sch_feedpoint')}\n"
                     f"   |     |     |\n"
-                    f"  Radials (ground plane)\n"
+                    f"  {pt(lang, 'sch_radials_gp')}\n"
                 )
             elif "dipole" in self.design.antenna_type.lower():
                 briefing += (
-                    f"      Leg A          Leg B\n"
+                    f"      {pt(lang, 'sch_leg_a'):15s}{pt(lang, 'sch_leg_b')}\n"
                     f"    =========== ⊗ ===========\n"
-                    f"    (Element 1)   (Element 2)\n"
+                    f"    {pt(lang, 'sch_elem1'):14s}{pt(lang, 'sch_elem2')}\n"
                     f"                  |\n"
-                    f"              Feedpoint\n"
+                    f"              {pt(lang, 'sch_feedpoint')}\n"
                     f"                  |\n"
-                    f"              Feed cable\n"
+                    f"              {pt(lang, 'sch_feed_cable')}\n"
                 )
             elif "efhw" in self.design.antenna_type.lower():
                 briefing += (
-                    f"  End (high impedance)\n"
+                    f"  {pt(lang, 'sch_end_high_z')}\n"
                     f"         |\n"
-                    f"      ======= Element\n"
+                    f"      ======= {pt(lang, 'sch_element')}\n"
                     f"         |\n"
                     f"      Unun 9:1\n"
                     f"         |\n"
-                    f"      Feedpoint (50 Ohms)\n"
+                    f"      {pt(lang, 'sch_feedpoint_50')}\n"
                     f"         |\n"
-                    f"      Feed cable\n"
+                    f"      {pt(lang, 'sch_feed_cable')}\n"
                 )
             else:
                 briefing += (
-                    f"   Antenna Structure\n"
+                    f"   {pt(lang, 'sch_structure')}\n"
                     f"         |\n"
-                    f"      Feedpoint ⊗\n"
+                    f"      {pt(lang, 'sch_feedpoint')} ⊗\n"
                     f"         |\n"
-                    f"      Feed cable\n"
+                    f"      {pt(lang, 'sch_feed_cable')}\n"
                 )
 
             briefing += "\n"
@@ -1154,15 +1144,15 @@ HOE TE GEBRUIKEN:
                     f"  [ ] Test continuïteit met multimeter\n"
                     f"  [ ] Installeer antenne op werkingshoogte\n"
                     f"  [ ] Meet SWR op meerdere frequenties\n"
-                    f"  [ ] Documenteer basislineprestaties\n"
+                    f"  [ ] Leg de uitgangsprestaties vast\n"
                     f"  [ ] Maak afstemmingsaanpassingen indien nodig\n"
                 )
                 safety_list = (
                     f"  • Zorg dat antenne vrij is van stroomlijnen\n"
-                    f"  • Aarde antennemast correct\n"
+                    f"  • Aard de antennemast correct\n"
                     f"  • Zend nooit zonder juiste aarding\n"
                     f"  • Controleer RF-veiligheidsnormen (SAR-limieten)\n"
-                    f"  • Controleer regelmatig op weersscbade\n"
+                    f"  • Controleer regelmatig op weerschade\n"
                 )
 
             briefing += (
@@ -1202,30 +1192,30 @@ HOE TE GEBRUIKEN:
             def export_briefing():
                 path = filedialog.asksaveasfilename(
                     defaultextension=".txt",
-                    filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+                    filetypes=[(pt(self.lang.get(), "txt_files"), "*.txt"), (pt(self.lang.get(), "all_files"), "*.*")]
                 )
                 if path:
                     with open(path, 'w', encoding='utf-8') as f:
                         f.write(text_widget.get(1.0, tk.END))
                     messagebox.showinfo(self._t("window_title"),
-                                       f"Briefing exported to:\n{path}")
+                                       pt(self.lang.get(), "brief_exported", path=path))
 
-            export_btn = RoundedButton(btn_frame, "Export as TXT", export_briefing,
+            export_btn = RoundedButton(btn_frame, pt(self.lang.get(), "brief_export"), export_briefing,
                                       PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             export_btn.pack(side="left", padx=5)
 
             # Close button
-            close_btn = RoundedButton(btn_frame, "Close", popup.destroy,
+            close_btn = RoundedButton(btn_frame, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(side="right", padx=5)
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Briefing error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'brief_error')}: {str(e)}")
 
     def _show_matching_networks(self):
         """Open Matching Network Calculator in popup window."""
         if not self.design:
-            messagebox.showwarning(self._t("error"), "Design antenna first")
+            messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
@@ -1233,12 +1223,12 @@ HOE TE GEBRUIKEN:
             antenna_z = float(self.design.feedpoint_impedance_ohms)
 
             popup = tk.Toplevel(self)
-            popup.title("Impedance Matching Network Calculator")
+            popup.title(pt(self.lang.get(), "match_title"))
             popup.geometry("900x850")
             popup.configure(bg=BG)
 
             # Title
-            title_label = ttk.Label(popup, text="Matching Network Design", style="PanelTitle.TLabel")
+            title_label = ttk.Label(popup, text=pt(self.lang.get(), "match_heading"), style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Input frame
@@ -1246,19 +1236,19 @@ HOE TE GEBRUIKEN:
             input_frame.pack(fill="x", padx=10, pady=5)
 
             # Source impedance
-            ttk.Label(input_frame, text="Source (Ohms):", style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "match_source"), style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
             source_var = tk.StringVar(value="50")
             source_entry = ttk.Entry(input_frame, textvariable=source_var, width=10)
             source_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
 
             # Load impedance (auto-filled from antenna design)
-            ttk.Label(input_frame, text="Load/Antenna (Ohms):", style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "match_load"), style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
             load_var = tk.StringVar(value=str(antenna_z))
             load_entry = ttk.Entry(input_frame, textvariable=load_var, width=10)
             load_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
 
             # Frequency
-            ttk.Label(input_frame, text="Frequency (MHz):", style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "freq_mhz"), style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
             freq_var = tk.StringVar(value=str(freq_mhz))
             freq_entry = ttk.Entry(input_frame, textvariable=freq_var, width=10)
             freq_entry.grid(row=2, column=1, sticky="w", padx=5, pady=3)
@@ -1271,7 +1261,7 @@ HOE TE GEBRUIKEN:
                     freq = float(freq_var.get())
 
                     if source <= 0 or load <= 0 or freq <= 0:
-                        raise ValueError("All values must be positive")
+                        raise ValueError(pt(self.lang.get(), "values_positive"))
 
                     # Calculate SWR before matching
                     swr_before = calculate_swr_from_impedance(load, source)
@@ -1283,68 +1273,52 @@ HOE TE GEBRUIKEN:
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
 
+                    L = self.lang.get()
                     result = (
-                        f"IMPEDANCE MATCHING NETWORK DESIGN\n"
+                        f"{pt(L, 'm_header')}\n"
                         f"{'='*60}\n"
-                        f"Source impedance: {source} Ohms\n"
-                        f"Load impedance: {load} Ohms\n"
-                        f"Frequency: {freq} MHz\n"
-                        f"SWR (before matching): {swr_before}:1\n\n"
+                        f"{pt(L, 'm_source', v=source)}\n"
+                        f"{pt(L, 'm_load', v=load)}\n"
+                        f"{pt(L, 'm_freq', v=freq)}\n"
+                        f"{pt(L, 'm_swr_before', v=swr_before)}\n\n"
                     )
+
+                    # Componentregels per netwerktype: (label-sleutel, veld, eenheid)
+                    comp_rows = {
+                        'L-Low':      [("series_inductor", 'l_series_uh', "µH"),
+                                       ("shunt_capacitor", 'c_shunt_pf', "pF")],
+                        'L-High':     [("shunt_inductor", 'l_shunt_uh', "µH"),
+                                       ("series_capacitor", 'c_series_pf', "pF")],
+                        'T-Network':  [("shunt_inductor_1", 'l1_shunt_uh', "µH"),
+                                       ("series_capacitor", 'c_series_pf', "pF"),
+                                       ("shunt_inductor_2", 'l2_shunt_uh', "µH"),
+                                       ("z_mid", 'z_mid_ohm', "Ohms")],
+                        'Pi-Network': [("shunt_capacitor_1", 'c1_shunt_pf', "pF"),
+                                       ("series_inductor", 'l_series_uh', "µH"),
+                                       ("shunt_capacitor_2", 'c2_shunt_pf', "pF"),
+                                       ("z_mid", 'z_mid_ohm', "Ohms")],
+                    }
+                    char_key = {'L-Low': "char_l", 'L-High': "char_l",
+                                'T-Network': "char_t", 'Pi-Network': "char_pi"}
 
                     for i, net in enumerate(networks, 1):
-                        result += f"\nOPTION {i}: {net['type']}\n"
+                        result += f"\n{pt(L, 'm_option', i=i, name=net['type'])}\n"
                         result += f"{'-'*60}\n"
-                        result += f"Topology: {net['topology']}\n"
-                        result += f"Quality Factor (Q): {net['quality_factor']}\n"
-                        result += f"Description: {net['description']}\n"
+                        result += f"{pt(L, 'm_topology', v=translate_phrases(L, net['topology']))}\n"
+                        result += f"{pt(L, 'm_q', v=net['quality_factor'])}\n"
+                        result += f"{pt(L, 'm_description', v=translate_phrases(L, net['description']))}\n"
 
-                        if net['type'] == 'L-Low':
-                            result += f"\nComponent Values:\n"
-                            result += f"  Series Inductor: {net['l_series_uh']} µH\n"
-                            result += f"  Shunt Capacitor: {net['c_shunt_pf']} pF\n"
-                        elif net['type'] == 'L-High':
-                            result += f"\nComponent Values:\n"
-                            result += f"  Shunt Inductor: {net['l_shunt_uh']} µH\n"
-                            result += f"  Series Capacitor: {net['c_series_pf']} pF\n"
-                        elif net['type'] == 'T-Network':
-                            result += f"\nComponent Values:\n"
-                            result += f"  Shunt Inductor 1: {net['l1_shunt_uh']} µH\n"
-                            result += f"  Series Capacitor: {net['c_series_pf']} pF\n"
-                            result += f"  Shunt Inductor 2: {net['l2_shunt_uh']} µH\n"
-                            result += f"  Impedance (midpoint): {net['z_mid_ohm']} Ohms\n"
-                        elif net['type'] == 'Pi-Network':
-                            result += f"\nComponent Values:\n"
-                            result += f"  Shunt Capacitor 1: {net['c1_shunt_pf']} pF\n"
-                            result += f"  Series Inductor: {net['l_series_uh']} µH\n"
-                            result += f"  Shunt Capacitor 2: {net['c2_shunt_pf']} pF\n"
-                            result += f"  Impedance (midpoint): {net['z_mid_ohm']} Ohms\n"
+                        rows = comp_rows.get(net['type'], [])
+                        if rows:
+                            result += f"\n{pt(L, 'm_components')}\n"
+                            for key, field, unit in rows:
+                                result += f"  {pt(L, key)}: {net[field]} {unit}\n"
 
-                        result += f"\nCharacteristics:\n"
-                        if net['type'] == 'L-Low' or net['type'] == 'L-High':
-                            result += f"  • Simplest design (2 components)\n"
-                            result += f"  • Narrowest bandwidth (high Q)\n"
-                            result += f"  • Good for single-frequency matching\n"
-                        elif net['type'] == 'T-Network':
-                            result += f"  • Moderate complexity (3 components)\n"
-                            result += f"  • Medium bandwidth (lower Q than L-network)\n"
-                            result += f"  • Better impedance transformation\n"
-                        elif net['type'] == 'Pi-Network':
-                            result += f"  • Moderate complexity (3 components)\n"
-                            result += f"  • Good filtering properties\n"
-                            result += f"  • Variable capacitors allow adjustment\n"
-                            result += f"  • Popular in amateur radio tuners\n"
+                        result += f"\n{pt(L, 'm_characteristics')}\n"
+                        for line in pt(L, char_key.get(net['type'], "char_l")):
+                            result += f"  • {line}\n"
 
-                    result += (
-                        f"\n{'='*60}\n"
-                        f"NOTES:\n"
-                        f"  • Use standard component values nearest calculated values\n"
-                        f"  • All inductors should be wound on appropriate cores\n"
-                        f"  • Capacitors must handle expected power levels\n"
-                        f"  • L-networks have narrowest bandwidth\n"
-                        f"  • T/Pi networks provide better bandwidth\n"
-                        f"  • After matching, antenna SWR should approach 1:1\n"
-                    )
+                    result += f"\n{'='*60}\n" + pt(L, 'm_notes')
 
                     info_text.insert(1.0, result)
                     info_text.config(state="disabled")
@@ -1352,10 +1326,10 @@ HOE TE GEBRUIKEN:
                 except Exception as e:
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
-                    info_text.insert(1.0, f"Error: {str(e)}")
+                    info_text.insert(1.0, f"{pt(self.lang.get(), 'error_prefix')}: {str(e)}")
                     info_text.config(state="disabled")
 
-            calc_btn = RoundedButton(input_frame, "Calculate", calculate_networks,
+            calc_btn = RoundedButton(input_frame, pt(self.lang.get(), "calculate"), calculate_networks,
                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             calc_btn.grid(row=3, column=0, columnspan=2, pady=10)
 
@@ -1367,7 +1341,7 @@ HOE TE GEBRUIKEN:
             info_text.pack(fill="both", expand=True, padx=10, pady=5)
 
             # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
+            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=10)
 
@@ -1375,7 +1349,7 @@ HOE TE GEBRUIKEN:
             calculate_networks()
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Matching network error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'match_error')}: {str(e)}")
 
     def _show_cable_loss(self):
         """Open Cable Loss Calculator in popup window."""
@@ -1392,12 +1366,12 @@ HOE TE GEBRUIKEN:
             swr_value = swr_data['swr']
 
             popup = tk.Toplevel(self)
-            popup.title("Transmission Line Loss Calculator")
+            popup.title(pt(self.lang.get(), "cable_title"))
             popup.geometry("800x700")
             popup.configure(bg=BG)
 
             # Title
-            title_label = ttk.Label(popup, text="Transmission Line Loss Analysis", style="PanelTitle.TLabel")
+            title_label = ttk.Label(popup, text=pt(self.lang.get(), "cable_heading"), style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Input frame
@@ -1405,26 +1379,26 @@ HOE TE GEBRUIKEN:
             input_frame.pack(fill="x", padx=10, pady=5)
 
             # Frequency (auto-filled from design)
-            ttk.Label(input_frame, text="Frequency (MHz):", style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "freq_mhz"), style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=5, pady=3)
             freq_var = tk.StringVar(value=str(freq_mhz))
             freq_entry = ttk.Entry(input_frame, textvariable=freq_var, width=10)
             freq_entry.grid(row=0, column=1, sticky="w", padx=5, pady=3)
 
             # Distance
-            ttk.Label(input_frame, text="Cable length (meters):", style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "cable_len"), style="Panel.TLabel").grid(row=1, column=0, sticky="w", padx=5, pady=3)
             dist_var = tk.StringVar(value="30")
             dist_entry = ttk.Entry(input_frame, textvariable=dist_var, width=10)
             dist_entry.grid(row=1, column=1, sticky="w", padx=5, pady=3)
 
             # Cable type (auto-filled from design)
-            ttk.Label(input_frame, text="Cable type:", style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "cable_type"), style="Panel.TLabel").grid(row=2, column=0, sticky="w", padx=5, pady=3)
             cable_var = tk.StringVar(value=cable_type)
             cable_combo = ttk.Combobox(input_frame, textvariable=cable_var,
                                        values=get_all_cable_types(), width=15, state="readonly")
             cable_combo.grid(row=2, column=1, sticky="w", padx=5, pady=3)
 
             # SWR (auto-filled from design)
-            ttk.Label(input_frame, text="Antenna SWR:", style="Panel.TLabel").grid(row=3, column=0, sticky="w", padx=5, pady=3)
+            ttk.Label(input_frame, text=pt(self.lang.get(), "antenna_swr"), style="Panel.TLabel").grid(row=3, column=0, sticky="w", padx=5, pady=3)
             swr_var = tk.StringVar(value=str(swr_value))
             swr_entry = ttk.Entry(input_frame, textvariable=swr_var, width=10)
             swr_entry.grid(row=3, column=1, sticky="w", padx=5, pady=3)
@@ -1458,18 +1432,22 @@ HOE TE GEBRUIKEN:
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
 
+                    L = self.lang.get()
+                    # Rendement = deel van het vermogen dat de antenne bereikt
+                    # (was: 100 − dat deel, d.w.z. het verloren percentage)
+                    efficiency = 100 * 10 ** (-total_loss / 10)
                     result_text = (
-                        f"Frequency: {freq} MHz\n"
-                        f"Cable: {cable} ({distance_m}m = {distance_ft:.0f}ft)\n"
-                        f"Antenna SWR: {swr}:1\n\n"
-                        f"LOSSES:\n"
-                        f"  Cable loss: {cable_loss:.2f} dB\n"
-                        f"  SWR loss: {swr_loss_db:.2f} dB\n"
-                        f"  Total loss: {total_loss:.2f} dB\n\n"
-                        f"POWER BUDGET (100W TX):\n"
-                        f"  Power at antenna: {power_budget['power_at_antenna_watts']:.1f}W\n"
-                        f"  Efficiency: {100 - (10**(-total_loss/10))*100:.1f}%\n"
-                        f"  EIRP: {power_budget['eirp_watts']:.2f}W\n"
+                        f"{pt(L, 'c_freq', v=freq)}\n"
+                        f"{pt(L, 'c_cable', cable=cable, m=distance_m, ft=distance_ft)}\n"
+                        f"{pt(L, 'c_swr', v=swr)}\n\n"
+                        f"{pt(L, 'c_losses')}\n"
+                        f"  {pt(L, 'c_cable_loss', v=cable_loss)}\n"
+                        f"  {pt(L, 'c_swr_loss', v=swr_loss_db)}\n"
+                        f"  {pt(L, 'c_total_loss', v=total_loss)}\n\n"
+                        f"{pt(L, 'c_budget')}\n"
+                        f"  {pt(L, 'c_power_ant', v=power_budget['power_at_antenna_watts'])}\n"
+                        f"  {pt(L, 'c_efficiency', v=efficiency)}\n"
+                        f"  {pt(L, 'c_eirp', v=power_budget['eirp_watts'])}\n"
                     )
                     info_text.insert(1.0, result_text)
                     info_text.config(state="disabled")
@@ -1477,10 +1455,10 @@ HOE TE GEBRUIKEN:
                 except Exception as e:
                     info_text.config(state="normal")
                     info_text.delete(1.0, tk.END)
-                    info_text.insert(1.0, f"Error: {str(e)}")
+                    info_text.insert(1.0, f"{pt(self.lang.get(), 'error_prefix')}: {str(e)}")
                     info_text.config(state="disabled")
 
-            calc_btn = RoundedButton(input_frame, "Calculate", calculate_loss,
+            calc_btn = RoundedButton(input_frame, pt(self.lang.get(), "calculate"), calculate_loss,
                                     PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             calc_btn.grid(row=4, column=0, columnspan=2, pady=10)
 
@@ -1492,7 +1470,7 @@ HOE TE GEBRUIKEN:
             info_text.pack(fill="both", expand=True, padx=10, pady=5)
 
             # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
+            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=10)
 
@@ -1500,12 +1478,12 @@ HOE TE GEBRUIKEN:
             calculate_loss()
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Cable Loss error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'cable_error')}: {str(e)}")
 
     def _show_radiation_pattern(self):
         """Open Radiation Pattern polar plot in popup window."""
         if not self.design:
-            messagebox.showwarning(self._t("error"), "Design antenna first")
+            messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
@@ -1518,12 +1496,12 @@ HOE TE GEBRUIKEN:
 
             # Create popup
             popup = tk.Toplevel(self)
-            popup.title("Radiation Pattern - " + antenna_type_label(antenna_type, lang))
+            popup.title(pt(lang, "rad_title") + " - " + antenna_type_label(antenna_type, lang))
             popup.geometry("800x850")
             popup.configure(bg=BG)
 
             # Title
-            title_label = ttk.Label(popup, text="Azimuth Radiation Pattern (Horizontal Plane)",
+            title_label = ttk.Label(popup, text=pt(lang, "rad_heading"),
                                     style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
@@ -1544,18 +1522,15 @@ HOE TE GEBRUIKEN:
 
             # Add antenna label
             canvas.create_text(center[0], center[1] + radius + 25,
-                              text="Azimuth Pattern (Top View)", fill=FG,
+                              text=pt(lang, "rad_canvas"), fill=FG,
                               font=("Helvetica", 9, "bold"))
 
             # Information panel
             info_frame = ttk.Frame(popup, style="Panel.TFrame")
             info_frame.pack(fill="both", expand=True, padx=10, pady=(5, 0))
 
-            info_text = (
-                f"Gain: {gain_info['gain_dbi']:.1f} dBi  •  "
-                f"F/B Ratio: {gain_info['f_b_ratio_db']:.1f} dB  •  "
-                f"Take-off: {gain_info['takeoff_angle_deg']:.0f}°"
-            )
+            info_text = pt(lang, "rad_info", g=gain_info['gain_dbi'],
+                           fb=gain_info['f_b_ratio_db'], toa=gain_info['takeoff_angle_deg'])
 
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
             info_label.pack(anchor="w", padx=10, pady=(5, 5))
@@ -1567,27 +1542,17 @@ HOE TE GEBRUIKEN:
             )
             explanation_text.pack(fill="both", expand=True)
 
-            explanation = (
-                "RADIATION PATTERN EXPLANATION:\n\n"
-                "• Pattern shows antenna directivity (top view/azimuth)\n"
-                "• Wider lobes = radiation in that direction\n"
-                "• Dipole: Omnidirectional (donut shaped)\n"
-                "• Yagi: Directional with main lobe + side lobes\n"
-                "• Vertical: Omnidirectional for skywave\n"
-                "• F/B Ratio: How much better forward than backward\n"
-                "• Gain (dBi): Power amplification vs isotropic source\n\n"
-                "USE: Understand antenna directivity and coverage area"
-            )
+            explanation = pt(lang, "rad_expl")
             explanation_text.insert(1.0, explanation)
             explanation_text.config(state="disabled")
 
             # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
+            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=(5, 10))
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Pattern error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'rad_error')}: {str(e)}")
 
     def _show_pattern_info(self, lang):
         """Show Radiation Pattern explanation."""
@@ -1686,7 +1651,7 @@ V/A Verhouding (Voor-naar-Achter):
 • Hoger = directer gericht
 • 0 dB = omnidirectionaal, 15 dB = zeer gericht
 
-Straalhhoek:
+Afstraalhoek:
 • Stralingshoek vanaf horizontaal
 • Laag (10-20°) = beter voor DX
 • Hoog (40-60°) = beter voor lokaal
@@ -1701,7 +1666,7 @@ PRAKTISCH GEBRUIK:
         }
 
         popup = tk.Toplevel(self)
-        popup.title("Radiation Pattern Explanation")
+        popup.title(pt(lang, "rad_expl_title"))
         popup.geometry("700x800")
         popup.configure(bg=BG)
 
@@ -1714,7 +1679,7 @@ PRAKTISCH GEBRUIK:
         text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
         text_widget.config(state="disabled")
 
-        close_btn = RoundedButton(popup, "Close", popup.destroy,
+        close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                  PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         close_btn.pack(pady=10)
 
@@ -1832,7 +1797,7 @@ PRAKTISCH GEBRUIK:
         }
 
         popup = tk.Toplevel(self)
-        popup.title("SWR & Impedance Matching Explanation")
+        popup.title(pt(lang, "swr_expl_title"))
         popup.geometry("700x800")
         popup.configure(bg=BG)
 
@@ -1845,14 +1810,14 @@ PRAKTISCH GEBRUIK:
         text_widget.insert(1.0, info_text.get(lang, info_text["en"]))
         text_widget.config(state="disabled")
 
-        close_btn = RoundedButton(popup, "Close", popup.destroy,
+        close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                  PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
         close_btn.pack(pady=10)
 
     def _show_sweep_window(self):
         """Open SWR Sweep in popup window."""
         if not self.design:
-            messagebox.showwarning(self._t("error"), "Design antenna first")
+            messagebox.showwarning(self._t("error"), pt(self.lang.get(), "design_first"))
             return
 
         try:
@@ -1874,19 +1839,19 @@ PRAKTISCH GEBRUIK:
                                           freq_end, step_mhz=0.1, wire_vf=wire_vf)
 
             if not sweep or "frequencies" not in sweep:
-                messagebox.showwarning(self._t("error"), "Sweep data unavailable")
+                messagebox.showwarning(self._t("error"), pt(self.lang.get(), "sweep_unavailable"))
                 return
 
             # Create popup
             popup = tk.Toplevel(self)
-            popup.title("SWR Sweep - " + antenna_type_label(antenna_type, self.lang.get()))
+            popup.title(pt(self.lang.get(), "sweep_title") + " - " + antenna_type_label(antenna_type, self.lang.get()))
             popup.geometry("850x750")
             popup.configure(bg=BG)
 
             lang = self.lang.get()
 
             # Title
-            title_label = ttk.Label(popup, text="SWR Sweep Analysis - Frequency Response", style="PanelTitle.TLabel")
+            title_label = ttk.Label(popup, text=pt(lang, "sweep_heading"), style="PanelTitle.TLabel")
             title_label.pack(anchor="w", padx=10, pady=(10, 5))
 
             # Canvas for SWR curve
@@ -1922,7 +1887,7 @@ PRAKTISCH GEBRUIK:
                               fill=AMBER, width=2)
 
             # Axis labels
-            canvas.create_text(canvas_w // 2, canvas_h - 10, text="Frequency (MHz)",
+            canvas.create_text(canvas_w // 2, canvas_h - 10, text=pt(lang, "sweep_axis"),
                               fill=FG, font=("Helvetica", 9))
             canvas.create_text(15, canvas_h // 2, text="SWR", fill=FG,
                               font=("Helvetica", 9), angle=90)
@@ -1951,10 +1916,8 @@ PRAKTISCH GEBRUIK:
             bw_low, bw_high = sweep["bandwidth_3db"]
             bw = bw_high - bw_low
 
-            info_text = (
-                f"Resonance: {res_freq} MHz (SWR {sweep['min_swr']}:1)  •  "
-                f"Bandwidth (SWR ≤1.5): {bw_low}-{bw_high} MHz ({bw:.1f} MHz)"
-            )
+            info_text = pt(lang, "sweep_info", res=res_freq, swr=sweep['min_swr'],
+                           lo=bw_low, hi=bw_high, bw=bw)
 
             info_label = ttk.Label(info_frame, text=info_text, style="Panel.TLabel")
             info_label.pack(anchor="w", padx=10, pady=(5, 5))
@@ -1966,26 +1929,17 @@ PRAKTISCH GEBRUIK:
             )
             explanation_text.pack(fill="both", expand=True)
 
-            explanation = (
-                "SWR SWEEP EXPLANATION:\n\n"
-                "• V-shaped curve shows SWR across the band\n"
-                "• Lowest point = resonance frequency (best match)\n"
-                "• Wider curve base = broader usable bandwidth\n"
-                "• SWR ≤1.5:1 = acceptable for most operations\n"
-                "• Marked point (AMBER) = resonance with minimum SWR\n"
-                "• Bandwidth shows frequency range for SWR ≤1.5:1\n\n"
-                "USE: Find best frequency for operation or antenna tuner needs"
-            )
+            explanation = pt(lang, "sweep_expl")
             explanation_text.insert(1.0, explanation)
             explanation_text.config(state="disabled")
 
             # Close button
-            close_btn = RoundedButton(popup, "Close", popup.destroy,
+            close_btn = RoundedButton(popup, pt(self.lang.get(), "close"), popup.destroy,
                                      PANEL_BG, AMBER, AMBER_DIM, font=("Helvetica", 8, "bold"))
             close_btn.pack(pady=(5, 10))
 
         except Exception as e:
-            messagebox.showerror(self._t("error"), f"Sweep error: {str(e)}")
+            messagebox.showerror(self._t("error"), f"{pt(self.lang.get(), 'sweep_error')}: {str(e)}")
 
     def _show_balun_help(self):
         """Show balun/unun construction guide popup."""
@@ -2230,6 +2184,17 @@ CONSTRUCTIE-TIPS
 
 
 
+def _lang_from_argv(argv) -> str | None:
+    """--lang nl | --lang=en → taalcode, anders None (eigen voorkeur)."""
+    for i, arg in enumerate(argv):
+        if arg.startswith("--lang="):
+            return arg.split("=", 1)[1].strip().lower() or None
+        if arg == "--lang" and i + 1 < len(argv):
+            return argv[i + 1].strip().lower()
+    return None
+
+
 if __name__ == "__main__":
-    app = AntennaDesignerApp()
+    import sys
+    app = AntennaDesignerApp(lang=_lang_from_argv(sys.argv[1:]))
     app.mainloop()
